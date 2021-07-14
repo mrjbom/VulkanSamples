@@ -1,5 +1,5 @@
 # VulkanSamples
-A collection of sample programs using Vulkaт
+A collection of sample programs using Vulkan
 
 ## Dependencies
 * [GLFW](https://github.com/glfw/glfw/) version >= 3.3.4
