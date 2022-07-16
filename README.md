@@ -1,12 +1,13 @@
 # VulkanSamples
-A collection of sample programs using Vulkan
+A collection of Vulkan samples  
+Made like the [SaschaWillems/Vulkan](https://github.com/SaschaWillems/Vulkan/) examples
 
 ## Dependencies
-* [GLFW](https://github.com/glfw/glfw/) version >= 3.3.4
+* [GLFW](https://github.com/glfw/glfw/) version >= 3.3.7
 * [glm](https://github.com/g-truc/glm/) version >= 0.9.9.8
-* [imgui](https://github.com/ocornut/imgui/) version >= 1.83
-* [VulkanSDK](https://www.lunarg.com/vulkan-sdk/) version >= 1.2.176.1
-* [VulkanMemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/) version >= 2.3.0
+* [imgui](https://github.com/ocornut/imgui/) version >= 1.88
+* [VulkanSDK](https://vulkan.lunarg.com/) version >= 1.1 (1.3.216.0 now in use)
+* [VulkanMemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/) version >= 3.0.1
 * [stb](https://github.com/nothings/stb/)
 * Any C++17 compiler
 
@@ -17,7 +18,7 @@ A collection of sample programs using Vulkan
  cd VulkanSamples
 ```
 2. Download [GLFW Windows pre-compiled binaries](https://www.glfw.org/download.html#windows-pre-compiled-binaries)
-3. Download [VulkanSDK](https://www.lunarg.com/vulkan-sdk/)
+3. Download [VulkanSDK](https://vulkan.lunarg.com/)
 4. Go to [this](third-party/glfw-libs) folder and read README.md
 5. Go to [this](third-party/vulkansdk-include) folder and read README.md
 6. Go to [this](third-party/vulkansdk-libs) folder and read README.md

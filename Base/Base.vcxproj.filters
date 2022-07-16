@@ -13,13 +13,48 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\src">
-      <UniqueIdentifier>{d34bde2d-b697-4008-ae41-7ec22ce87d5c}</UniqueIdentifier>
+    <Filter Include="Source Files\source">
+      <UniqueIdentifier>{275d2c3c-2cc2-4869-87af-6afdb77a2a0d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\source\Helpers">
+      <UniqueIdentifier>{d5563a9d-17bb-435e-b25b-d272cd6203a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\source">
+      <UniqueIdentifier>{e319253c-a4bc-421f-9aa3-4129c9f908db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\source\Helpers">
+      <UniqueIdentifier>{08554059-d953-43e3-bb05-6182eab39167}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\source\ErrorInfo">
+      <UniqueIdentifier>{b5bca576-7903-45cf-8221-02061ddbc302}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\source\ErrorInfo">
+      <UniqueIdentifier>{0f2d6a09-1a81-48da-8be9-7d048f17b2cb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Base.cpp">
-      <Filter>Source Files\src</Filter>
+    <ClCompile Include="source\BaseSample.cpp">
+      <Filter>Source Files\source</Filter>
     </ClCompile>
+    <ClCompile Include="source\ErrorInfo\ValidationLayers.cpp">
+      <Filter>Source Files\source\ErrorInfo</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Helpers\VulkanDevice.cpp">
+      <Filter>Source Files\source\Helpers</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="source\Helpers\VulkanDevice.h">
+      <Filter>Header Files\source\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="source\BaseSample.h">
+      <Filter>Header Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ErrorInfo\ErrorInfo.h">
+      <Filter>Header Files\source\ErrorInfo</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ErrorInfo\ValidationLayers.h">
+      <Filter>Header Files\source\ErrorInfo</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
