@@ -11,6 +11,7 @@ public:
 		base_sampleRequirements.base_title = "Triangle";
 		//base_sampleRequirements.base_instanceEnabledExtensionsNames = { "NAME_OF_INSTANCE_EXTENSION1", "NAME_OF_INSTANCE_EXTENSION2" };
 		//base_sampleRequirements.base_deviceEnabledExtensionsNames = { "NAME_OF_PHYSICAL_DEVICE_EXTENSION1", "NAME_OF_PHYSICAL_DEVICE_EXTENSION2" };
+		//base_sampleRequirements.base_requiredQueueFamilyTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
 	}
 
 	~TriangleSample()
@@ -19,7 +20,6 @@ public:
 
 	virtual bool getEnabledFeatures(VkPhysicalDevice physicalDevice)
 	{
-		//base_deviceEnabledFeatures.textureCompressionETC2 = true;
 		return true;
 	}
 };

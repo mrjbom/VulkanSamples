@@ -50,7 +50,7 @@ bool VulkanDevice::checkExtensionsSupport(std::vector<std::string> requiredExten
     return notSupportedExtensionsNames.empty();
 }
 
-VulkanDevice::QueueFamilyIndices VulkanDevice::getQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes, VkSurfaceKHR surface)
+void VulkanDevice::getQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes, VkSurfaceKHR surface)
 {
     VulkanDevice::QueueFamilyIndices indices;
 
@@ -59,6 +59,7 @@ VulkanDevice::QueueFamilyIndices VulkanDevice::getQueueFamilyIndices(VkQueueFlag
         for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i) {
             if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphics = i;
+                indices.graphicsFlags = queueFamilyProperties[i].queueFlags;
                 break;
             }
         }
@@ -86,6 +87,7 @@ VulkanDevice::QueueFamilyIndices VulkanDevice::getQueueFamilyIndices(VkQueueFlag
             if ((queueFamilyProperties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) && !(queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
                 // Dedicated queue family found successfully
                 indices.compute = i;
+                indices.computeFlags = queueFamilyProperties[i].queueFlags;
                 break;
             }
         }
@@ -98,6 +100,7 @@ VulkanDevice::QueueFamilyIndices VulkanDevice::getQueueFamilyIndices(VkQueueFlag
             else {
                 // We use any queue family that support compute operations
                 indices.compute = first_any;
+                indices.computeFlags = queueFamilyProperties[first_any.value()].queueFlags;
             }
         }
     }
@@ -120,6 +123,7 @@ VulkanDevice::QueueFamilyIndices VulkanDevice::getQueueFamilyIndices(VkQueueFlag
             if ((queueFamilyProperties[i].queueFlags & VK_QUEUE_TRANSFER_BIT) && !(queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
                 // Dedicated queue family found successfully
                 indices.transfer = i;
+                indices.transferFlags = queueFamilyProperties[i].queueFlags;
                 break;
             }
         }
@@ -134,9 +138,11 @@ VulkanDevice::QueueFamilyIndices VulkanDevice::getQueueFamilyIndices(VkQueueFlag
                 // then reporting the VK_QUEUE_TRANSFER_BIT capability separately for that queue family is optional.
                 if (indices.graphics.has_value()) {
                     indices.transfer = indices.graphics;
+                    indices.transferFlags = indices.graphicsFlags;
                 } 
                 else if (indices.compute.has_value()) {
                     indices.transfer = indices.compute;
+                    indices.transferFlags = indices.computeFlags;
                 }
                 else {
                     throw MakeErrorInfo("Could not find a queue family that supports transfer operations!");
@@ -145,6 +151,7 @@ VulkanDevice::QueueFamilyIndices VulkanDevice::getQueueFamilyIndices(VkQueueFlag
             else {
                 // We use any queue family that support compute operations
                 indices.transfer = first_any;
+                indices.transferFlags = queueFamilyProperties[first_any.value()].queueFlags;
             }
         }
     }
@@ -164,16 +171,101 @@ VulkanDevice::QueueFamilyIndices VulkanDevice::getQueueFamilyIndices(VkQueueFlag
             throw MakeErrorInfo("Could not find a queue family that supports present!");
         }
     }
-
-    return indices;
+    this->queueFamilyIndices = indices;
 }
 
-VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures requiredFeatures, std::vector<std::string> requiredExtensionsName, VkQueueFlags requiredQueueFamilyTypes)
+void VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures requiredFeatures, std::vector<std::string> requiredExtensionsNames)
 {
     // We already have a logical device and cannot create a second one
     if (this->logicalDevice) {
         throw MakeErrorInfo("Creating a logical device with already existing logical device!")
     }
 
+    // Create queue create infos
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 
+    // Spec says
+    // The queueFamilyIndex member of each element of pQueueCreateInfos must be unique within pQueueCreateInfos,
+    // except that two members can share the same queueFamilyIndex 
+    // if one describes protected - capable queues and one describes queues that are not protected - capable
+    
+    // We need queue for graphics operations
+    if (queueFamilyIndices.graphics.has_value()) {
+        queueCreateInfos.push_back({});
+        queueCreateInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfos.back().queueFamilyIndex = queueFamilyIndices.graphics.value();
+        queueCreateInfos.back().queueCount = 1;
+        float queuePriority = 1.0f;
+        queueCreateInfos.back().pQueuePriorities = &queuePriority;
+    }
+
+    // We need queue for compute operations
+    if (queueFamilyIndices.compute.has_value()) {
+        // if compute queue family is not graphics queue family (dedicated)
+        bool computeIsNotGraphics = true;
+        // We have graphics queue family and created queue from graphics queue family
+        if (queueFamilyIndices.graphics.has_value()) {
+            // check compute queue is not graphics?
+            computeIsNotGraphics = queueFamilyIndices.compute.value() != queueFamilyIndices.graphics.value();
+        }
+        if (computeIsNotGraphics) {
+            // We need to create queue from compute family(because is not graphics)
+            queueCreateInfos.push_back({});
+            queueCreateInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueCreateInfos.back().queueFamilyIndex = queueFamilyIndices.compute.value();
+            queueCreateInfos.back().queueCount = 1;
+            float queuePriority = 1.0f;
+            queueCreateInfos.back().pQueuePriorities = &queuePriority;
+        }
+    }
+
+    // We need queue for transfer operations
+    if (queueFamilyIndices.transfer.has_value()) {
+        // transfer queue family index can be equal to graphics queue family and/or to compute
+        // if transfer queue family is not graphics or compute queue family (dedicated)
+        bool transferIsNotGraphicsOrCompute = true;
+        // We have graphics queue family and created queue from graphics queue family
+        if (queueFamilyIndices.graphics.has_value()) {
+            // check transfer queue is not graphics?
+            transferIsNotGraphicsOrCompute = queueFamilyIndices.transfer.value() != queueFamilyIndices.graphics.value();
+        }
+        // We have compute queue family and created queue from compute queue family
+        if (queueFamilyIndices.compute.has_value()) {
+            if (transferIsNotGraphicsOrCompute) {
+                // check transfer queue is not compute?
+                transferIsNotGraphicsOrCompute = queueFamilyIndices.transfer.value() != queueFamilyIndices.compute.value();
+            }
+        }
+        if (transferIsNotGraphicsOrCompute) {
+            // We need to create queue from transfer family(because is not graphics or compute)
+            queueCreateInfos.push_back({});
+            queueCreateInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueCreateInfos.back().queueFamilyIndex = queueFamilyIndices.transfer.value();
+            queueCreateInfos.back().queueCount = 1;
+            float queuePriority = 1.0f;
+            queueCreateInfos.back().pQueuePriorities = &queuePriority;
+        }
+    }
+
+    // Create logical device
+    VkDeviceCreateInfo deviceCreateInfo{};
+    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceCreateInfo.queueCreateInfoCount = queueCreateInfos.size();
+    deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
+    std::vector<const char*> requiredExtensionsNames_const_char_ptr;
+    for (auto& requiredExtensionsName : requiredExtensionsNames) {
+        requiredExtensionsNames_const_char_ptr.push_back(requiredExtensionsName.c_str());
+    }
+    deviceCreateInfo.enabledExtensionCount = requiredExtensionsNames_const_char_ptr.size();
+    deviceCreateInfo.ppEnabledExtensionNames = requiredExtensionsNames_const_char_ptr.data();
+    deviceCreateInfo.pEnabledFeatures = &requiredFeatures;
+
+    VkResult result;
+    result = vkCreateDevice(this->physicalDevice, &deviceCreateInfo, nullptr, &this->logicalDevice);
+    if (result != VK_SUCCESS && result != VK_ERROR_FEATURE_NOT_PRESENT) {
+        throw MakeErrorInfo("Failed to create a logical device!");
+    }
+    else if (result == VK_ERROR_FEATURE_NOT_PRESENT) {
+        throw MakeErrorInfo("The physical device does not support the required feature! It looks like the sample incorrectly checks and set the required features");
+    }
 }

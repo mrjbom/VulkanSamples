@@ -22,8 +22,11 @@ public:
     {
     public:
         std::optional<uint32_t> graphics;
+        VkQueueFlags            graphicsFlags = 0; //graphical queue family flags
         std::optional<uint32_t> compute;
+        VkQueueFlags            computeFlags = 0;  //compute queue family flags
         std::optional<uint32_t> transfer;
+        VkQueueFlags            transferFlags = 0; //transfer queue family flags
         std::optional<uint32_t> present;
     };
     QueueFamilyIndices queueFamilyIndices;
@@ -38,7 +41,7 @@ public:
     // Check device supports the requested extensions
     bool checkExtensionsSupport(std::vector<std::string> requiredExtensionsNames);
 
-    // Find and get required queue family indices
+    // Find and save required queue family indices
     // - requiredQueueFamilyTypes
     // If requiredQueueFamilyTypes include VK_QUEUE_COMPUTE_BIT or/and VK_QUEUE_TRANSFER_BIT then
     // it first tries to find a dedicated queue family for them; if that fails,
@@ -46,8 +49,9 @@ public:
     // - surface
     // It is also necessary to pass the surface to determine whether any queue family supports presentation to it
     // Can be NULL if you do not need to check the possibility of queues to display on the surface.
-    QueueFamilyIndices getQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes, VkSurfaceKHR surface);
+    void getQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes, VkSurfaceKHR surface);
 
-    VkResult createLogicalDevice(VkPhysicalDeviceFeatures requiredFeatures, std::vector<std::string> requiredExtensionsName, VkQueueFlags requiredQueueFamilyTypes);
+    // Create logical device
+    void createLogicalDevice(VkPhysicalDeviceFeatures requiredFeatures, std::vector<std::string> requiredExtensionsNames);
 };
 

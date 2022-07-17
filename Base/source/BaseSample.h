@@ -37,7 +37,7 @@ public:
 		// Enabled(required, setting up by sample) device features
 		VkPhysicalDeviceFeatures		base_deviceEnabledFeatures{};
 		// Required queue family types(setting up by sample)
-		VkQueueFlags					base_requiredQueueFamilyTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
+		VkQueueFlags					base_requiredQueueFamilyTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT;
 	};
 	SampleRequirements base_sampleRequirements;
 

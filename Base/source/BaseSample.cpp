@@ -241,10 +241,10 @@ void BaseSample::prepareDevice()
 	}
 
 	// Find required queue families indices 
-	base_vulkanDevice->queueFamilyIndices = base_vulkanDevice->getQueueFamilyIndices(base_sampleRequirements.base_requiredQueueFamilyTypes, base_surface);
+	base_vulkanDevice->getQueueFamilyIndices(base_sampleRequirements.base_requiredQueueFamilyTypes, base_surface);
 
 	// Create logical device
-	base_vulkanDevice->createLogicalDevice(base_sampleRequirements.base_deviceEnabledFeatures, base_sampleRequirements.base_deviceEnabledExtensionsNames, base_sampleRequirements.base_requiredQueueFamilyTypes);
+	base_vulkanDevice->createLogicalDevice(base_sampleRequirements.base_deviceEnabledFeatures, base_sampleRequirements.base_deviceEnabledExtensionsNames);
 }
 
 bool BaseSample::getEnabledFeatures(VkPhysicalDevice physicalDevice) { return false; }
