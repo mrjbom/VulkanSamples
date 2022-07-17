@@ -245,6 +245,24 @@ void BaseSample::prepareDevice()
 
 	// Create logical device
 	base_vulkanDevice->createLogicalDevice(base_sampleRequirements.base_deviceEnabledFeatures, base_sampleRequirements.base_deviceEnabledExtensionsNames);
+
+	// Get device queues
+	// Get graphics queue
+	if (base_vulkanDevice->queueFamilyIndices.graphics.has_value()) {
+		vkGetDeviceQueue(base_vulkanDevice->logicalDevice, base_vulkanDevice->queueFamilyIndices.graphics.value(), 0, &base_graphicsQueue);
+	}
+	// Get compute queue
+	if (base_vulkanDevice->queueFamilyIndices.compute.has_value()) {
+		vkGetDeviceQueue(base_vulkanDevice->logicalDevice, base_vulkanDevice->queueFamilyIndices.compute.value(), 0, &base_computeQueue);
+	}
+	// Get transfer queue
+	if (base_vulkanDevice->queueFamilyIndices.transfer.has_value()) {
+		vkGetDeviceQueue(base_vulkanDevice->logicalDevice, base_vulkanDevice->queueFamilyIndices.transfer.value(), 0, &base_transferQueue);
+	}
+	// Get present queue
+	if (base_vulkanDevice->queueFamilyIndices.present.has_value()) {
+		vkGetDeviceQueue(base_vulkanDevice->logicalDevice, base_vulkanDevice->queueFamilyIndices.present.value(), 0, &base_presentQueue);
+	}
 }
 
 bool BaseSample::getEnabledFeatures(VkPhysicalDevice physicalDevice) { return false; }

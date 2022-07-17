@@ -54,9 +54,13 @@ public:
 	// Current Vulkan device
 	VulkanDevice*						base_vulkanDevice = nullptr;
 	// Default graphics queue
-	VkQueue								base_graphicsQueue;
-	// Default graphics queue
-	VkQueue								base_presentQueue;
+	VkQueue								base_graphicsQueue = VK_NULL_HANDLE;
+	// Default compute queue
+	VkQueue								base_computeQueue = VK_NULL_HANDLE;
+	// Default transfer queue
+	VkQueue								base_transferQueue = VK_NULL_HANDLE;
+	// Default present queue
+	VkQueue								base_presentQueue = VK_NULL_HANDLE;
 public:
 	BaseSample();
 	virtual ~BaseSample();
@@ -76,7 +80,7 @@ public:
 	// Init VulkanDevice:
 	// Pick physical device
 	// Create logical device
-	// Setting up queues
+	// Get queues
 	void prepareDevice();
 
 	// Redefined by the sample, called when checking the physical device

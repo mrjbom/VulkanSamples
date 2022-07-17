@@ -1,5 +1,6 @@
 #include "VulkanDevice.h"
 #include "../ErrorInfo/ErrorInfo.h"
+#include <algorithm>
 
 VulkanDevice::VulkanDevice()
 {
@@ -189,62 +190,35 @@ void VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures requiredFeatures
     // except that two members can share the same queueFamilyIndex 
     // if one describes protected - capable queues and one describes queues that are not protected - capable
     
-    // We need queue for graphics operations
+    std::vector<uint32_t> uniqueQueueFamilyIndeces;
     if (queueFamilyIndices.graphics.has_value()) {
+        uniqueQueueFamilyIndeces.push_back(queueFamilyIndices.graphics.value());
+    }
+    if (queueFamilyIndices.compute.has_value()) {
+        uniqueQueueFamilyIndeces.push_back(queueFamilyIndices.compute.value());
+    }
+    if (queueFamilyIndices.transfer.has_value()) {
+        uniqueQueueFamilyIndeces.push_back(queueFamilyIndices.transfer.value());
+    }
+    if (queueFamilyIndices.present.has_value()) {
+        uniqueQueueFamilyIndeces.push_back(queueFamilyIndices.present.value());
+    }
+    // remove consecutive (adjacent) duplicates
+    auto lastElem = std::unique(uniqueQueueFamilyIndeces.begin(), uniqueQueueFamilyIndeces.end());
+    uniqueQueueFamilyIndeces.erase(lastElem, uniqueQueueFamilyIndeces.end());
+    // sort followed by unique, to remove all duplicates
+    std::sort(uniqueQueueFamilyIndeces.begin(), uniqueQueueFamilyIndeces.end());
+    // remove duplicates
+    lastElem = std::unique(uniqueQueueFamilyIndeces.begin(), uniqueQueueFamilyIndeces.end());
+    uniqueQueueFamilyIndeces.erase(lastElem, uniqueQueueFamilyIndeces.end());
+
+    for (auto& uniqueQueueFamilyIndex : uniqueQueueFamilyIndeces) {
         queueCreateInfos.push_back({});
         queueCreateInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfos.back().queueFamilyIndex = queueFamilyIndices.graphics.value();
+        queueCreateInfos.back().queueFamilyIndex = uniqueQueueFamilyIndex;
         queueCreateInfos.back().queueCount = 1;
         float queuePriority = 1.0f;
         queueCreateInfos.back().pQueuePriorities = &queuePriority;
-    }
-
-    // We need queue for compute operations
-    if (queueFamilyIndices.compute.has_value()) {
-        // if compute queue family is not graphics queue family (dedicated)
-        bool computeIsNotGraphics = true;
-        // We have graphics queue family and created queue from graphics queue family
-        if (queueFamilyIndices.graphics.has_value()) {
-            // check compute queue is not graphics?
-            computeIsNotGraphics = queueFamilyIndices.compute.value() != queueFamilyIndices.graphics.value();
-        }
-        if (computeIsNotGraphics) {
-            // We need to create queue from compute family(because is not graphics)
-            queueCreateInfos.push_back({});
-            queueCreateInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfos.back().queueFamilyIndex = queueFamilyIndices.compute.value();
-            queueCreateInfos.back().queueCount = 1;
-            float queuePriority = 1.0f;
-            queueCreateInfos.back().pQueuePriorities = &queuePriority;
-        }
-    }
-
-    // We need queue for transfer operations
-    if (queueFamilyIndices.transfer.has_value()) {
-        // transfer queue family index can be equal to graphics queue family and/or to compute
-        // if transfer queue family is not graphics or compute queue family (dedicated)
-        bool transferIsNotGraphicsOrCompute = true;
-        // We have graphics queue family and created queue from graphics queue family
-        if (queueFamilyIndices.graphics.has_value()) {
-            // check transfer queue is not graphics?
-            transferIsNotGraphicsOrCompute = queueFamilyIndices.transfer.value() != queueFamilyIndices.graphics.value();
-        }
-        // We have compute queue family and created queue from compute queue family
-        if (queueFamilyIndices.compute.has_value()) {
-            if (transferIsNotGraphicsOrCompute) {
-                // check transfer queue is not compute?
-                transferIsNotGraphicsOrCompute = queueFamilyIndices.transfer.value() != queueFamilyIndices.compute.value();
-            }
-        }
-        if (transferIsNotGraphicsOrCompute) {
-            // We need to create queue from transfer family(because is not graphics or compute)
-            queueCreateInfos.push_back({});
-            queueCreateInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfos.back().queueFamilyIndex = queueFamilyIndices.transfer.value();
-            queueCreateInfos.back().queueCount = 1;
-            float queuePriority = 1.0f;
-            queueCreateInfos.back().pQueuePriorities = &queuePriority;
-        }
     }
 
     // Create logical device
