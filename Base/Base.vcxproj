@@ -23,11 +23,13 @@
     <ClInclude Include="source\ErrorInfo\ErrorInfo.h" />
     <ClInclude Include="source\ErrorInfo\ValidationLayers.h" />
     <ClInclude Include="source\Helpers\VulkanDevice.h" />
+    <ClInclude Include="source\Helpers\VulkanSwapChain.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\BaseSample.cpp" />
     <ClCompile Include="source\ErrorInfo\ValidationLayers.cpp" />
     <ClCompile Include="source\Helpers\VulkanDevice.cpp" />
+    <ClCompile Include="source\Helpers\VulkanSwapChain.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

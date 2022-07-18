@@ -3,7 +3,6 @@
 #include <vector>
 #include <string>
 #include <optional>
-#include <set>
 #include <vulkan/vulkan.h>
 #include "VulkanDevice.h"
 
@@ -11,9 +10,9 @@ class VulkanDevice
 {
 public:
     VkPhysicalDevice                              physicalDevice = VK_NULL_HANDLE;
-    VkDevice							          logicalDevice = VK_NULL_HANDLE;
+    VkDevice                                      logicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceProperties                    properties{};
-    std::vector<VkExtensionProperties>	          supportedExtensions;
+    std::vector<VkExtensionProperties>            supportedExtensions;
     VkPhysicalDeviceFeatures                      supportedFeatures{};
     VkPhysicalDeviceFeatures                      enabledFeatures{};
     VkPhysicalDeviceMemoryProperties              memoryProperties{};
@@ -31,12 +30,11 @@ public:
     };
     QueueFamilyIndices queueFamilyIndices;
 
-
-    VulkanDevice();
-    ~VulkanDevice();
-
-    // Collects data about a physical device
+    // Collects and save data about a physical device
     VulkanDevice(VkPhysicalDevice physicalDevice);
+
+    // Destroy logical device
+    ~VulkanDevice();
 
     // Check device supports the requested extensions
     bool checkExtensionsSupport(std::vector<std::string> requiredExtensionsNames);
@@ -49,9 +47,8 @@ public:
     // - surface
     // It is also necessary to pass the surface to determine whether any queue family supports presentation to it
     // Can be NULL if you do not need to check the possibility of queues to display on the surface.
-    void getQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes, VkSurfaceKHR surface);
+    void findQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes, VkSurfaceKHR surface);
 
     // Create logical device
     void createLogicalDevice(VkPhysicalDeviceFeatures requiredFeatures, std::vector<std::string> requiredExtensionsNames);
 };
-

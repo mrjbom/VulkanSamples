@@ -42,6 +42,9 @@
     <ClCompile Include="source\Helpers\VulkanDevice.cpp">
       <Filter>Source Files\source\Helpers</Filter>
     </ClCompile>
+    <ClCompile Include="source\Helpers\VulkanSwapChain.cpp">
+      <Filter>Source Files\source\Helpers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\Helpers\VulkanDevice.h">
@@ -55,6 +58,9 @@
     </ClInclude>
     <ClInclude Include="source\ErrorInfo\ValidationLayers.h">
       <Filter>Header Files\source\ErrorInfo</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Helpers\VulkanSwapChain.h">
+      <Filter>Header Files\source\Helpers</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

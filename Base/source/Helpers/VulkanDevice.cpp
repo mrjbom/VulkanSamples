@@ -2,17 +2,6 @@
 #include "../ErrorInfo/ErrorInfo.h"
 #include <algorithm>
 
-VulkanDevice::VulkanDevice()
-{
-}
-
-VulkanDevice::~VulkanDevice()
-{
-	if (this->logicalDevice) {
-		vkDestroyDevice(this->logicalDevice, nullptr);
-	}
-}
-
 VulkanDevice::VulkanDevice(VkPhysicalDevice physicalDevice)
 {
     this->physicalDevice = physicalDevice;
@@ -26,34 +15,41 @@ VulkanDevice::VulkanDevice(VkPhysicalDevice physicalDevice)
     supportedExtensions.resize(supportedExtensionsCount);
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &supportedExtensionsCount, supportedExtensions.data());
     
-	// Get device supported features
+    // Get device supported features
     vkGetPhysicalDeviceFeatures(physicalDevice, &supportedFeatures);
     
-	// Get device memory properties
+    // Get device memory properties
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
     
-	// Get device queue families
+    // Get device queue families
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
     queueFamilyProperties.resize(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilyProperties.data());
 }
 
+VulkanDevice::~VulkanDevice()
+{
+    if (this->logicalDevice) {
+        vkDestroyDevice(this->logicalDevice, nullptr);
+    }
+}
+
 bool VulkanDevice::checkExtensionsSupport(std::vector<std::string> requiredExtensionsNames)
 {
     std::set<std::string> notSupportedExtensionsNames;
-    for (auto& extensionName : requiredExtensionsNames) {
+    for (const auto& extensionName : requiredExtensionsNames) {
         notSupportedExtensionsNames.insert(extensionName);
     }
-    for (auto& extension : supportedExtensions) {
+    for (const auto& extension : supportedExtensions) {
         notSupportedExtensionsNames.erase(extension.extensionName);
     }
     return notSupportedExtensionsNames.empty();
 }
 
-void VulkanDevice::getQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes, VkSurfaceKHR surface)
+void VulkanDevice::findQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes, VkSurfaceKHR surface)
 {
-    VulkanDevice::QueueFamilyIndices indices;
+    QueueFamilyIndices indices;
 
     // Search for any queue family that supports graphical operations
     if (requiredQueueFamilyTypes & VK_QUEUE_GRAPHICS_BIT) {
@@ -185,34 +181,26 @@ void VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures requiredFeatures
     // Create queue create infos
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 
-    // Spec says
+    // Spec says:
     // The queueFamilyIndex member of each element of pQueueCreateInfos must be unique within pQueueCreateInfos,
     // except that two members can share the same queueFamilyIndex 
     // if one describes protected - capable queues and one describes queues that are not protected - capable
     
-    std::vector<uint32_t> uniqueQueueFamilyIndeces;
+    std::set<uint32_t> uniqueQueueFamilyIndeces;
     if (queueFamilyIndices.graphics.has_value()) {
-        uniqueQueueFamilyIndeces.push_back(queueFamilyIndices.graphics.value());
+        uniqueQueueFamilyIndeces.insert(queueFamilyIndices.graphics.value());
     }
     if (queueFamilyIndices.compute.has_value()) {
-        uniqueQueueFamilyIndeces.push_back(queueFamilyIndices.compute.value());
+        uniqueQueueFamilyIndeces.insert(queueFamilyIndices.compute.value());
     }
     if (queueFamilyIndices.transfer.has_value()) {
-        uniqueQueueFamilyIndeces.push_back(queueFamilyIndices.transfer.value());
+        uniqueQueueFamilyIndeces.insert(queueFamilyIndices.transfer.value());
     }
     if (queueFamilyIndices.present.has_value()) {
-        uniqueQueueFamilyIndeces.push_back(queueFamilyIndices.present.value());
+        uniqueQueueFamilyIndeces.insert(queueFamilyIndices.present.value());
     }
-    // remove consecutive (adjacent) duplicates
-    auto lastElem = std::unique(uniqueQueueFamilyIndeces.begin(), uniqueQueueFamilyIndeces.end());
-    uniqueQueueFamilyIndeces.erase(lastElem, uniqueQueueFamilyIndeces.end());
-    // sort followed by unique, to remove all duplicates
-    std::sort(uniqueQueueFamilyIndeces.begin(), uniqueQueueFamilyIndeces.end());
-    // remove duplicates
-    lastElem = std::unique(uniqueQueueFamilyIndeces.begin(), uniqueQueueFamilyIndeces.end());
-    uniqueQueueFamilyIndeces.erase(lastElem, uniqueQueueFamilyIndeces.end());
 
-    for (auto& uniqueQueueFamilyIndex : uniqueQueueFamilyIndeces) {
+    for (const auto& uniqueQueueFamilyIndex : uniqueQueueFamilyIndeces) {
         queueCreateInfos.push_back({});
         queueCreateInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfos.back().queueFamilyIndex = uniqueQueueFamilyIndex;
@@ -227,7 +215,7 @@ void VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures requiredFeatures
     deviceCreateInfo.queueCreateInfoCount = queueCreateInfos.size();
     deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
     std::vector<const char*> requiredExtensionsNames_const_char_ptr;
-    for (auto& requiredExtensionsName : requiredExtensionsNames) {
+    for (const auto& requiredExtensionsName : requiredExtensionsNames) {
         requiredExtensionsNames_const_char_ptr.push_back(requiredExtensionsName.c_str());
     }
     deviceCreateInfo.enabledExtensionCount = requiredExtensionsNames_const_char_ptr.size();
