@@ -104,11 +104,10 @@ public:
 
     void createSurface();
 
-    // Init VulkanDevice:
+    // Init VulkanDevice
     // Pick physical device
     // Create logical device
     // Get queues
-    // Create swap chain
     void prepareDevice();
 
     // Redefined by the sample, called when checking the physical device
@@ -117,6 +116,7 @@ public:
     // Return TRUE if the device is suitable
     virtual bool getEnabledFeatures(VkPhysicalDevice physicalDevice);
 
+    // Create swap chain
     void createSwapChain();
 
     void finishVulkan();

@@ -32,6 +32,11 @@ VulkanSwapChain::VulkanSwapChain(VulkanDevice* vulkanDevice, VkSurfaceKHR surfac
 
 VulkanSwapChain::~VulkanSwapChain()
 {
+    for (const auto& swapChainImageView : this->swapChainImagesViews) {
+        if (swapChainImageView != VK_NULL_HANDLE) {
+            vkDestroyImageView(this->vulkanDevice->logicalDevice, swapChainImageView, nullptr);
+        }
+    }
     if (this->swapChain) {
         vkDestroySwapchainKHR(this->vulkanDevice->logicalDevice, this->swapChain, nullptr);
     }
@@ -114,6 +119,30 @@ void VulkanSwapChain::createSwapChain(VkSurfaceFormatKHR preferredFormat, VkPres
     vkGetSwapchainImagesKHR(vulkanDevice->logicalDevice, swapChain, &imageCount, nullptr);
     swapChainImages.resize(imageCount);
     vkGetSwapchainImagesKHR(vulkanDevice->logicalDevice, swapChain, &imageCount, swapChainImages.data());
+
+    // Create image views fro swap chain images
+    swapChainImagesViews.resize(swapChainImages.size());
+    for (uint32_t i = 0; i < swapChainImagesViews.size(); i++) {
+        VkImageViewCreateInfo imageViewCreateInfo{};
+        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewCreateInfo.image = swapChainImages[i];
+        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imageViewCreateInfo.format = swapChainFormat.format;
+        imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+        imageViewCreateInfo.subresourceRange.levelCount = 1;
+        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewCreateInfo.subresourceRange.layerCount = 1;
+        VkResult result;
+        result = vkCreateImageView(vulkanDevice->logicalDevice, &imageViewCreateInfo, nullptr, &swapChainImagesViews[i]);
+        if (result != VK_SUCCESS) {
+            throw MakeErrorInfo("Failed to create image view for swap chain image!");
+        }
+    }
 }
 
 bool VulkanSwapChain::setPrefferedSwapChainFormat(VkSurfaceFormatKHR preferredFormat)
