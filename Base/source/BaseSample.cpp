@@ -26,11 +26,19 @@ void BaseSample::initVulkan()
     }
     createSurface();
     prepareDevice();
+}
+
+void BaseSample::prepare()
+{
     createSwapChain();
+    createRenderPass();
 }
 
 void BaseSample::finishVulkan()
 {
+    if (base_renderPass) {
+        vkDestroyRenderPass(base_vulkanDevice->logicalDevice, base_renderPass, nullptr);
+    }
     if (base_vulkanSwapChain) {
         delete base_vulkanSwapChain;
     }
@@ -286,3 +294,52 @@ void BaseSample::createSwapChain()
     // Create swap chain
     base_vulkanSwapChain->createSwapChain(base_sampleSwapChainRequirements.base_swapChainPrefferedFormat, base_sampleSwapChainRequirements.base_swapChainPrefferedPresentMode);
 }
+
+void BaseSample::createRenderPass()
+{
+    // Attachments descriptions
+    std::vector<VkAttachmentDescription> attachmentsDescriptions;
+    // attachment description [0] - swap chain image
+    attachmentsDescriptions.push_back({});
+    attachmentsDescriptions.back().format = base_vulkanSwapChain->swapChainFormat.format;
+    attachmentsDescriptions.back().samples = VK_SAMPLE_COUNT_1_BIT;
+    attachmentsDescriptions.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachmentsDescriptions.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachmentsDescriptions.back().stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachmentsDescriptions.back().stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachmentsDescriptions.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachmentsDescriptions.back().finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    // Attachments references
+    std::vector<VkAttachmentReference> attachmentsReferences;
+    // attachments references [0]
+    attachmentsReferences.push_back({});
+    attachmentsReferences.back().attachment = 0; // Index in the attachmentsDescriptions array
+    // The layout specifies which layout we would like the attachment to have during a subpass that uses this reference
+    // Vulkan will automatically transition the attachment to this layout when the subpass is started
+    attachmentsReferences.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    // Subpasses
+    std::vector<VkSubpassDescription> subpassDescriptions;
+    // subbpass [0]
+    subpassDescriptions.push_back({});
+    subpassDescriptions.back().pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpassDescriptions.back().colorAttachmentCount = 1;
+    subpassDescriptions.back().pColorAttachments = &attachmentsReferences[0];
+
+    // Create renderpass
+    VkRenderPassCreateInfo renderpassCreateInfo{};
+    renderpassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderpassCreateInfo.attachmentCount = 1;
+    renderpassCreateInfo.pAttachments = &attachmentsDescriptions[0];
+    renderpassCreateInfo.subpassCount = subpassDescriptions.size();
+    renderpassCreateInfo.pSubpasses = subpassDescriptions.data();
+
+    VkResult result;
+    result = vkCreateRenderPass(base_vulkanDevice->logicalDevice, &renderpassCreateInfo, nullptr, &base_renderPass);
+    if (result != VK_SUCCESS) {
+        throw MakeErrorInfo("Failed to create renderpass!");
+    }
+}
+
+void BaseSample::createGraphicsPipeline() { }

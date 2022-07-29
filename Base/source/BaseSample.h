@@ -83,11 +83,17 @@ public:
 
     // SwapChain
     VulkanSwapChain*                    base_vulkanSwapChain = nullptr;
+
+    // General render pass
+    VkRenderPass                        base_renderPass = VK_NULL_HANDLE;
 public:
     BaseSample();
     virtual ~BaseSample();
 
     void initVulkan();
+
+    // Always redefined by the sample
+    virtual void prepare();
 
     void initGlfw();
 
@@ -110,7 +116,7 @@ public:
     // Get queues
     void prepareDevice();
 
-    // Redefined by the sample, called when checking the physical device
+    // Always redefined by the sample, called when checking the physical device
     // It should check the availability of the required features and mark them as enabled
     // Return FALSE if the device does not meet the requirements
     // Return TRUE if the device is suitable
@@ -118,6 +124,13 @@ public:
 
     // Create swap chain
     void createSwapChain();
+
+    // Create general render pass
+    void createRenderPass();
+
+    // Always redefined by the sample
+    // Create renderpass
+    virtual void createGraphicsPipeline();
 
     void finishVulkan();
 };
