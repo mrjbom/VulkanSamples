@@ -33,10 +33,16 @@ void BaseSample::prepare()
     createSwapChain();
     createRenderPass();
     createFramebuffers();
+    createCommandPoolGraphics();
+    createCommandBuffersGraphics();
 }
 
 void BaseSample::finishVulkan()
 {
+    // Graphics command pool
+    if (base_commandPoolGraphics) {
+        vkDestroyCommandPool(base_vulkanDevice->logicalDevice, base_commandPoolGraphics, nullptr);
+    }
     // Framebuffers
     for (auto& swapChainFramebuffer : base_swapChainFramebuffers) {
         vkDestroyFramebuffer(base_vulkanDevice->logicalDevice, swapChainFramebuffer, nullptr);
@@ -374,5 +380,33 @@ void BaseSample::createFramebuffers()
         if (vkCreateFramebuffer(base_vulkanDevice->logicalDevice, &framebufferInfo, nullptr, &base_swapChainFramebuffers[i]) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to create framebuffers!");
         }
+    }
+}
+
+void BaseSample::createCommandPoolGraphics()
+{
+    VkCommandPoolCreateInfo commandPoolCreateInfo{};
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    commandPoolCreateInfo.queueFamilyIndex = base_vulkanDevice->queueFamilyIndices.graphics.value();
+
+    if (vkCreateCommandPool(base_vulkanDevice->logicalDevice, &commandPoolCreateInfo, nullptr, &base_commandPoolGraphics) != VK_SUCCESS) {
+        throw MakeErrorInfo("Failed to create graphics command pool!");
+    }
+}
+
+void BaseSample::createCommandBuffersGraphics()
+{
+    base_commandBuffersGraphics.resize(base_swapChainFramebuffers.size());
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = base_commandPoolGraphics;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = (uint32_t)base_commandBuffersGraphics.size();
+
+    //Allocate command buffers from command pool
+    if (vkAllocateCommandBuffers(base_vulkanDevice->logicalDevice, &allocInfo, base_commandBuffersGraphics.data()) != VK_SUCCESS) {
+        throw MakeErrorInfo("Failed to allocate command buffers!");
     }
 }

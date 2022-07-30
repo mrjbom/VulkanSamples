@@ -89,6 +89,13 @@ public:
 
     // Framebuffers for swap chain images
     std::vector<VkFramebuffer>          base_swapChainFramebuffers;
+
+    // Command pool for graphics commands(use graphical queue family)
+    // Spec says: All command buffers allocated from this command pool must be submitted on queues from the same queue family
+    VkCommandPool                       base_commandPoolGraphics = VK_NULL_HANDLE;
+
+    // Command buffers for graphics operation allocated from graphics command pool
+    std::vector<VkCommandBuffer>        base_commandBuffersGraphics;
 public:
     BaseSample();
     virtual ~BaseSample();
@@ -131,8 +138,14 @@ public:
     // Create general render pass
     void createRenderPass();
 
-    // Create renderpass
+    // Create framebuffers
     void createFramebuffers();
+
+    // Create command pool for graphics command pool
+    void createCommandPoolGraphics();
+
+    // Allocate graphics command buffers from graphics command pool
+    void createCommandBuffersGraphics();
 
     void finishVulkan();
 };
