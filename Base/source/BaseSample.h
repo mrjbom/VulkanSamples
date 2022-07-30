@@ -86,6 +86,9 @@ public:
 
     // General render pass
     VkRenderPass                        base_renderPass = VK_NULL_HANDLE;
+
+    // Framebuffers for swap chain images
+    std::vector<VkFramebuffer>          base_swapChainFramebuffers;
 public:
     BaseSample();
     virtual ~BaseSample();
@@ -128,9 +131,8 @@ public:
     // Create general render pass
     void createRenderPass();
 
-    // Always redefined by the sample
     // Create renderpass
-    virtual void createGraphicsPipeline();
+    void createFramebuffers();
 
     void finishVulkan();
 };

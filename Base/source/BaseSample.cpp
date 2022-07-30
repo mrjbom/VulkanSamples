@@ -32,23 +32,34 @@ void BaseSample::prepare()
 {
     createSwapChain();
     createRenderPass();
+    createFramebuffers();
 }
 
 void BaseSample::finishVulkan()
 {
+    // Framebuffers
+    for (auto& swapChainFramebuffer : base_swapChainFramebuffers) {
+        vkDestroyFramebuffer(base_vulkanDevice->logicalDevice, swapChainFramebuffer, nullptr);
+    }
+    // Renderpass
     if (base_renderPass) {
         vkDestroyRenderPass(base_vulkanDevice->logicalDevice, base_renderPass, nullptr);
     }
+    // Swap chain
     if (base_vulkanSwapChain) {
         delete base_vulkanSwapChain;
     }
+    // Logical device
     if (base_vulkanDevice) {
         delete base_vulkanDevice;
     }
+    // Surface
     vkDestroySurfaceKHR(base_instance, base_surface, nullptr);
+    // Debug messenger
     if (ValidationLayers::enabled) {
         ValidationLayers::DestroyDebugUtilsMessengerEXT(base_instance, base_debugMessenger, nullptr);
     }
+    // Instance
     vkDestroyInstance(base_instance, nullptr);
     glfwDestroyWindow(base_window);
     glfwTerminate();
@@ -342,4 +353,26 @@ void BaseSample::createRenderPass()
     }
 }
 
-void BaseSample::createGraphicsPipeline() { }
+void BaseSample::createFramebuffers()
+{
+    base_swapChainFramebuffers.resize(base_vulkanSwapChain->swapChainImagesViews.size());
+
+    for (size_t i = 0; i < base_vulkanSwapChain->swapChainImagesViews.size(); i++) {
+        VkImageView attachments[] = {
+            base_vulkanSwapChain->swapChainImagesViews[i]
+        };
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = base_renderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = base_vulkanSwapChain->swapChainExtent.width;
+        framebufferInfo.height = base_vulkanSwapChain->swapChainExtent.height;
+        framebufferInfo.layers = 1;
+
+        if (vkCreateFramebuffer(base_vulkanDevice->logicalDevice, &framebufferInfo, nullptr, &base_swapChainFramebuffers[i]) != VK_SUCCESS) {
+            throw MakeErrorInfo("Failed to create framebuffers!");
+        }
+    }
+}
