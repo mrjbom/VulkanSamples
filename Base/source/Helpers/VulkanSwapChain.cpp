@@ -120,7 +120,7 @@ void VulkanSwapChain::createSwapChain(VkSurfaceFormatKHR preferredFormat, VkPres
     swapChainImages.resize(imageCount);
     vkGetSwapchainImagesKHR(vulkanDevice->logicalDevice, swapChain, &imageCount, swapChainImages.data());
 
-    // Create image views fro swap chain images
+    // Create image views for swap chain images
     swapChainImagesViews.resize(swapChainImages.size());
     for (uint32_t i = 0; i < swapChainImagesViews.size(); i++) {
         VkImageViewCreateInfo imageViewCreateInfo{};

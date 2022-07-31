@@ -26,8 +26,29 @@ public:
         createGraphicsPipeline();
     }
 
+    void draw()
+    {
+        // Acquire image
+        BaseSample::prepareFrame();
+        
+        // Record command buffer
+        vkResetCommandBuffer(base_commandBuffersGraphics[currentFrameIndex], 0);
+        recordCommandBuffer(base_commandBuffersGraphics[currentFrameIndex], currentImageIndex);
+
+        base_submitInfo.commandBufferCount = 1;
+        base_submitInfo.pCommandBuffers = &base_commandBuffersGraphics[currentFrameIndex];
+        if (vkQueueSubmit(base_graphicsQueue, 1, &base_submitInfo, base_inFlightFences[currentFrameIndex]) != VK_SUCCESS) {
+            throw MakeErrorInfo("Failed to submit command buffer!");
+        }
+
+        // Present image
+        BaseSample::submitFrame();
+    }
+
     void cleanup()
     {
+        vkDeviceWaitIdle(base_vulkanDevice->logicalDevice);
+
         vkDestroyShaderModule(base_vulkanDevice->logicalDevice, vertShaderModule, nullptr);
         vkDestroyShaderModule(base_vulkanDevice->logicalDevice, fragShaderModule, nullptr);
 
@@ -175,6 +196,52 @@ public:
             throw MakeErrorInfo("Failed to create graphics pipeline!");
         }
     }
+
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+    {
+        VkCommandBufferBeginInfo commandBufferBeginInfo{};
+        commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        if (vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo) != VK_SUCCESS) {
+            throw MakeErrorInfo("Failed to begin recording command buffer!");
+        }
+
+        VkRenderPassBeginInfo renderPassBeginInfo{};
+        renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassBeginInfo.renderPass = base_renderPass;
+        renderPassBeginInfo.framebuffer = base_swapChainFramebuffers[imageIndex];
+        renderPassBeginInfo.renderArea.offset = { 0, 0 };
+        renderPassBeginInfo.renderArea.extent = base_vulkanSwapChain->swapChainExtent;
+        VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+        renderPassBeginInfo.clearValueCount = 1;
+        renderPassBeginInfo.pClearValues = &clearColor;
+
+        vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<float>(base_vulkanSwapChain->swapChainExtent.width);
+        viewport.height = static_cast<float>(base_vulkanSwapChain->swapChainExtent.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+        VkRect2D scissor{};
+        scissor.offset = { 0, 0 };
+        scissor.extent = base_vulkanSwapChain->swapChainExtent;
+        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+        vkCmdEndRenderPass(commandBuffer);
+
+        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+            throw MakeErrorInfo("Failed to record command buffer!");
+        }
+    }
 };
 
 int main(int argc, char* argv[])
@@ -184,6 +251,7 @@ int main(int argc, char* argv[])
         TriangleSample* sample = new TriangleSample;
         sample->initVulkan();
         sample->prepare();
+        sample->renderLoop();
 
         sample->cleanup();
         sample->finishVulkan();

@@ -96,6 +96,31 @@ public:
 
     // Command buffers for graphics operation allocated from graphics command pool
     std::vector<VkCommandBuffer>        base_commandBuffersGraphics;
+
+    // Sync objects for rendering
+    #define BASE_MAX_FRAMES_IN_FLIGHT 2
+
+    // Current frame index(NOT CURRENT SWAP CHAIN IMAGE INDEX)
+    uint32_t currentFrameIndex = 0;
+
+    // Current swap chain image index
+    uint32_t currentImageIndex = 0;
+
+    // The image from the swap chain was successfully aquired
+    std::vector<VkSemaphore> base_imageAvailableSemaphores;
+
+    // The command buffer with graphical operations has been successfully executed
+    std::vector<VkSemaphore> base_renderFinishedSemaphores;
+
+    // We can start rendering the frame(and record to command buffer)
+    std::vector<VkFence> base_inFlightFences;
+
+    // Submit info struct for graphics command buffers submitting
+    VkSubmitInfo base_submitInfo{};
+
+    // Specify which stages to wait on before command buffer execution begins
+    // VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    std::vector<VkPipelineStageFlags> base_submittingWaitStages = { VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT };
 public:
     BaseSample();
     virtual ~BaseSample();
@@ -104,6 +129,22 @@ public:
 
     // Always redefined by the sample
     virtual void prepare();
+
+    void renderLoop();
+
+    void nextFrame();
+
+    // Acquire image
+    void prepareFrame();
+
+    // Always redefined by the sample
+    virtual void draw();
+
+    // Present image to the swap chain
+    void submitFrame();
+
+    // Recreate swapchain(window resize)
+    void recreateSwapChain();
 
     void initGlfw();
 
@@ -133,6 +174,8 @@ public:
     virtual bool getEnabledFeatures(VkPhysicalDevice physicalDevice);
 
     // Create swap chain
+    // Retrieve swap chain images
+    // Create image views
     void createSwapChain();
 
     // Create general render pass
@@ -146,6 +189,14 @@ public:
 
     // Allocate graphics command buffers from graphics command pool
     void createCommandBuffersGraphics();
+
+    // Create syncronization objects for rendering
+    void createSyncObjects();
+
+    // Set up submit info structure (semaphores)
+    // Semaphores will stay the same during application lifetime
+    // Command buffer submission info is set by each example
+    void setupSubmitInfo();
 
     void finishVulkan();
 };

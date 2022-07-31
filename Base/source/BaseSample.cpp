@@ -14,6 +14,8 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
     BaseSample* app = reinterpret_cast<BaseSample*>(glfwGetWindowUserPointer(window));
     app->base_framebufferResized = true;
+    app->recreateSwapChain();
+    app->draw(); // Draw
 }
 
 void BaseSample::initVulkan()
@@ -35,10 +37,102 @@ void BaseSample::prepare()
     createFramebuffers();
     createCommandPoolGraphics();
     createCommandBuffersGraphics();
+    createSyncObjects();
+    setupSubmitInfo();
+}
+
+void BaseSample::renderLoop()
+{
+    while (!glfwWindowShouldClose(base_window)) {
+        glfwPollEvents();
+        nextFrame();
+    }
+}
+
+void BaseSample::nextFrame()
+{
+    draw();
+}
+
+void BaseSample::prepareFrame()
+{
+    vkWaitForFences(base_vulkanDevice->logicalDevice, 1, &base_inFlightFences[currentFrameIndex], VK_TRUE, UINT64_MAX);
+
+    VkResult result;
+    result = vkAcquireNextImageKHR(base_vulkanDevice->logicalDevice, base_vulkanSwapChain->swapChain, UINT64_MAX, base_imageAvailableSemaphores[currentFrameIndex], VK_NULL_HANDLE, &currentImageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        recreateSwapChain();
+    }
+    else if (result != VK_SUCCESS) {
+        throw MakeErrorInfo("Failed to acquire swap chain image!");
+    }
+
+    vkResetFences(base_vulkanDevice->logicalDevice, 1, &base_inFlightFences[currentFrameIndex]);
+}
+
+void BaseSample::draw() { }
+
+
+void BaseSample::submitFrame()
+{
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = &base_renderFinishedSemaphores[currentFrameIndex];
+
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &base_vulkanSwapChain->swapChain;
+    presentInfo.pImageIndices = &currentImageIndex;
+    VkResult result;
+    result = vkQueuePresentKHR(base_presentQueue, &presentInfo);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || base_framebufferResized) {
+        base_framebufferResized = false;
+        recreateSwapChain();
+        return;
+    }
+    else if (result != VK_SUCCESS) {
+        throw MakeErrorInfo("Failed to present swap chain image!");
+    }
+    currentImageIndex = (currentImageIndex + 1) % BASE_MAX_FRAMES_IN_FLIGHT;
+}
+
+void BaseSample::recreateSwapChain()
+{
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(base_window, &width, &height);
+    // Is window minimized
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(base_window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(base_vulkanDevice->logicalDevice);
+
+    if (base_vulkanSwapChain) {
+        delete base_vulkanSwapChain;
+    }
+    createSwapChain();
+
+    for (auto& swapChainFramebuffer : base_swapChainFramebuffers) {
+        vkDestroyFramebuffer(base_vulkanDevice->logicalDevice, swapChainFramebuffer, nullptr);
+    }
+    createFramebuffers();
 }
 
 void BaseSample::finishVulkan()
 {
+    vkDeviceWaitIdle(base_vulkanDevice->logicalDevice);
+
+    // Synchronization objects
+    for (auto& imageAvailableSemaphore : base_imageAvailableSemaphores) {
+        vkDestroySemaphore(base_vulkanDevice->logicalDevice, imageAvailableSemaphore, nullptr);
+    }
+    for (auto& renderFinishedSemaphore : base_renderFinishedSemaphores) {
+        vkDestroySemaphore(base_vulkanDevice->logicalDevice, renderFinishedSemaphore, nullptr);
+    }
+    for (auto& inFlightFence : base_inFlightFences) {
+        vkDestroyFence(base_vulkanDevice->logicalDevice, inFlightFence, nullptr);
+    }
     // Graphics command pool
     if (base_commandPoolGraphics) {
         vkDestroyCommandPool(base_vulkanDevice->logicalDevice, base_commandPoolGraphics, nullptr);
@@ -397,7 +491,7 @@ void BaseSample::createCommandPoolGraphics()
 
 void BaseSample::createCommandBuffersGraphics()
 {
-    base_commandBuffersGraphics.resize(base_swapChainFramebuffers.size());
+    base_commandBuffersGraphics.resize(BASE_MAX_FRAMES_IN_FLIGHT);
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -409,4 +503,36 @@ void BaseSample::createCommandBuffersGraphics()
     if (vkAllocateCommandBuffers(base_vulkanDevice->logicalDevice, &allocInfo, base_commandBuffersGraphics.data()) != VK_SUCCESS) {
         throw MakeErrorInfo("Failed to allocate command buffers!");
     }
+}
+
+void BaseSample::createSyncObjects()
+{
+    base_imageAvailableSemaphores.resize(BASE_MAX_FRAMES_IN_FLIGHT);
+    base_renderFinishedSemaphores.resize(BASE_MAX_FRAMES_IN_FLIGHT);
+    base_inFlightFences.resize(BASE_MAX_FRAMES_IN_FLIGHT);
+
+    VkSemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceCreateInfo{};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    for (uint32_t i = 0; i < BASE_MAX_FRAMES_IN_FLIGHT; i++) {
+        if (vkCreateSemaphore(base_vulkanDevice->logicalDevice, &semaphoreCreateInfo, nullptr, &base_imageAvailableSemaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(base_vulkanDevice->logicalDevice, &semaphoreCreateInfo, nullptr, &base_renderFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(base_vulkanDevice->logicalDevice, &fenceCreateInfo, nullptr, &base_inFlightFences[i]) != VK_SUCCESS) {
+            throw MakeErrorInfo("Failed to create synchronization objects for a frame!");
+        }
+    }
+}
+
+void BaseSample::setupSubmitInfo()
+{
+    base_submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    base_submitInfo.pWaitDstStageMask = base_submittingWaitStages.data();
+    base_submitInfo.waitSemaphoreCount = 1;
+    base_submitInfo.pWaitSemaphores = &base_imageAvailableSemaphores[currentFrameIndex];
+    base_submitInfo.signalSemaphoreCount = 1;
+    base_submitInfo.pSignalSemaphores = &base_renderFinishedSemaphores[currentFrameIndex];
 }
