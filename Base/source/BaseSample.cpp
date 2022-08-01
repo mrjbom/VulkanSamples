@@ -1,6 +1,8 @@
 #include "BaseSample.h"
 #include "ErrorInfo/ErrorInfo.h"
 #include "ErrorInfo/ValidationLayers.h"
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
 
 BaseSample::BaseSample()
 {

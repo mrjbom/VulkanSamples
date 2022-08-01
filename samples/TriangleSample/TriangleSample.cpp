@@ -2,9 +2,30 @@
 #include "../../Base/source/BaseSample.h"
 #include "../../Base/source/ErrorInfo/ErrorInfo.h"
 #include "../../Base/source/Helpers/Shader.h"
+#include "vk_mem_alloc.h"
+#include <glm/glm.hpp>
 
 class TriangleSample : public BaseSample
 {
+    // Vma
+    VmaAllocator vmaAllocator;
+
+    struct Vertex
+    {
+        glm::vec3 position;
+        glm::vec3 color;
+    };
+
+    std::vector<Vertex> vertexes = {
+        { glm::vec3(0.0, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0) },
+        { glm::vec3(0.5, 0.5, 0.0), glm::vec3(0.0, 1.0, 0.0) },
+        { glm::vec3(-0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0) }
+    };
+
+    VkBuffer vertexesBuffer = VK_NULL_HANDLE;
+    VmaAllocation vertexesBufferAllocation = 0;
+    VmaAllocationInfo vertexesBufferAllocationInfo{};
+
     VkShaderModule vertShaderModule = VK_NULL_HANDLE;
     VkShaderModule fragShaderModule = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
@@ -23,6 +44,8 @@ public:
     void prepare()
     {
         BaseSample::prepare();
+        initVma();
+        createBuffers();
         createGraphicsPipeline();
     }
 
@@ -49,12 +72,18 @@ public:
     {
         vkDeviceWaitIdle(base_vulkanDevice->logicalDevice);
 
+
+        // Pipeline
         vkDestroyShaderModule(base_vulkanDevice->logicalDevice, vertShaderModule, nullptr);
         vkDestroyShaderModule(base_vulkanDevice->logicalDevice, fragShaderModule, nullptr);
-
         vkDestroyPipelineLayout(base_vulkanDevice->logicalDevice, pipelineLayout, nullptr);
-
         vkDestroyPipeline(base_vulkanDevice->logicalDevice, graphicsPipeline, nullptr);
+
+        // Buffer
+        vmaDestroyBuffer(vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
+
+        // Allocator
+        vmaDestroyAllocator(vmaAllocator);
     }
 
     ~TriangleSample()
@@ -64,6 +93,44 @@ public:
     bool getEnabledFeatures(VkPhysicalDevice physicalDevice)
     {
         return true;
+    }
+
+    void initVma()
+    {
+        VmaAllocatorCreateInfo allocatorCreateInfo{};
+        allocatorCreateInfo.physicalDevice = base_vulkanDevice->physicalDevice;
+        allocatorCreateInfo.device = base_vulkanDevice->logicalDevice;
+        allocatorCreateInfo.instance = base_instance;
+        allocatorCreateInfo.vulkanApiVersion = base_sampleInstanceRequirements.base_instanceApiVersion;
+
+        vmaCreateAllocator(&allocatorCreateInfo, &vmaAllocator);
+    }
+
+    void createBuffers()
+    {
+        VkBufferCreateInfo bufferCreateInfo{};
+        bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferCreateInfo.size = VkDeviceSize(sizeof(vertexes[0])) * vertexes.size();
+        bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        VmaAllocationCreateInfo allocationCreateInfo{};
+        allocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        allocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // We must use memcpy (not random access!)
+
+        if (vmaCreateBuffer(vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vertexesBuffer, &vertexesBufferAllocation, &vertexesBufferAllocationInfo) != VK_SUCCESS) {
+            throw MakeErrorInfo("Failed to create buffer!");
+        }
+
+        // Map buffer memory and copy vertexes data
+        void* bufferMappedData = nullptr;
+        if (vmaMapMemory(vmaAllocator, vertexesBufferAllocation, &bufferMappedData)) {
+            throw MakeErrorInfo("Failed to map buffer!");
+        }
+        memcpy(bufferMappedData, vertexes.data(), sizeof(vertexes[0]) * vertexes.size());
+        vmaUnmapMemory(vmaAllocator, vertexesBufferAllocation);
     }
 
     void createGraphicsPipeline()
@@ -87,8 +154,33 @@ public:
         dynamicStateInfo.pDynamicStates = dynamicStates.data();
 
         // Vertex input
+        // Binding description for buffer
+        VkVertexInputBindingDescription bindingDescriptionInfo{};
+        bindingDescriptionInfo.binding = 0;
+        bindingDescriptionInfo.stride = sizeof(vertexes[0]);
+        bindingDescriptionInfo.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+        // Position
+        attributeDescriptions.push_back({});
+        attributeDescriptions.back().location = 0;
+        attributeDescriptions.back().binding = 0;
+        attributeDescriptions.back().format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions.back().offset = offsetof(Vertex, position);
+
+        // Color
+        attributeDescriptions.push_back({});
+        attributeDescriptions.back().location = 1;
+        attributeDescriptions.back().binding = 0;
+        attributeDescriptions.back().format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions.back().offset = offsetof(Vertex, color);
+
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescriptionInfo;
+        vertexInputInfo.vertexAttributeDescriptionCount = attributeDescriptions.size();
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
         // Input assembly
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
@@ -233,6 +325,9 @@ public:
         scissor.offset = { 0, 0 };
         scissor.extent = base_vulkanSwapChain->swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+        std::vector<VkDeviceSize> offsets = { 0 };
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexesBuffer, offsets.data());
 
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
