@@ -68,5 +68,8 @@
     <ClInclude Include="source\Helpers\Shader.h">
       <Filter>Header Files\source\Helpers</Filter>
     </ClInclude>
+    <ClInclude Include="source\Helpers\Camera.hpp">
+      <Filter>Header Files\source\Helpers</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

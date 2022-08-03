@@ -7,13 +7,15 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vk_mem_alloc.h>
+#include "ErrorInfo/ErrorInfo.h"
 #include "Helpers/VulkanDevice.h"
 #include "Helpers/VulkanSwapChain.h"
+#include "Helpers/Camera.hpp"
 
 class BaseSample
 {
 public:
-    // Window
+    GLFWmonitor*                        base_monitor = nullptr;
     GLFWwindow*                         base_window = nullptr;
 #define                                 WINDOW_WIDTH_SCALE 0.85
 #define                                 WINDOW_HEIGHT_SCALE 0.75
@@ -22,6 +24,13 @@ public:
     int                                 base_windowXPos = 0;
     int                                 base_windowYPos = 0;
     bool                                base_framebufferResized = false;
+    // Frametime in milliseconds
+    double                              base_frameTime = 0;
+    // Time it took to get glfw events(glfwPoolEvents()), is used to fix for increased frametime
+    double                              base_lastEventsPoolTime = 0;
+
+    Camera                              base_camera;
+    glm::vec2                           base_cursorPos{};
 
     // Sample should set its requirements
 
@@ -196,7 +205,7 @@ public:
     // Set up submit info structure (semaphores)
     // Semaphores will stay the same during application lifetime
     // Command buffer submission info is set by each example
-    void setupSubmitInfo();
+    void setupSubmitInfo(uint32_t currentFrameIndex);
 
     void finishVulkan();
 };

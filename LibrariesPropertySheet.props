@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<ImportGroup Label="PropertySheets" />
+	<PropertyGroup Label="UserMacros" >
+	<!--Third party libs main dir-->
+	<ThirdPartyLibsDir>$(SolutionDir)third-party</ThirdPartyLibsDir>
+	<!--Third party include dirs-->
+	<ThirdPartyGlfwIncludeDir>$(SolutionDir)third-party\glfw\include</ThirdPartyGlfwIncludeDir>
+	<ThirdPartyGlmIncludeDir>$(SolutionDir)third-party\glm</ThirdPartyGlmIncludeDir>
+	<ThirdPartyImguiIncludeDir>$(SolutionDir)third-party\imgui</ThirdPartyImguiIncludeDir>
+	<ThirdPartyStbIncludeDir>$(SolutionDir)third-party\stb</ThirdPartyStbIncludeDir>
+	<ThirdPartyVulkanMemoryAllocatorIncludeDir>$(SolutionDir)third-party\VulkanMemoryAllocator\include</ThirdPartyVulkanMemoryAllocatorIncludeDir>
+	<ThirdPartyVulkanSdkIncludeDir>$(SolutionDir)third-party\vulkansdk-include</ThirdPartyVulkanSdkIncludeDir>
+	<!--Third party libs dirs-->
+	<BaseDebugLibDir>$(SolutionDir)Debug</BaseDebugLibDir>
+	<BaseReleaseLibDir>$(SolutionDir)Release</BaseReleaseLibDir>
+	<ThirdPartyGlfwDebugLibsDir>$(SolutionDir)third-party\glfw-libs\MDd</ThirdPartyGlfwDebugLibsDir>
+	<ThirdPartyVulkanMemoryAllocatorDebugLibsDir>$(SolutionDir)third-party\vma-libs\x32d</ThirdPartyVulkanMemoryAllocatorDebugLibsDir>
+	<ThirdPartyVulkanSdkLibsDir>$(SolutionDir)third-party\vulkansdk-libs\Lib32</ThirdPartyVulkanSdkLibsDir>
+	<!--Third party libs-->
+	<BaseLib>Base.lib</BaseLib>
+	<ThirdPartyGlfwLib>glfw3.lib</ThirdPartyGlfwLib>
+	<ThirdPartyVulkanMemoryAllocatorDebugLib>VulkanMemoryAllocatord.lib</ThirdPartyVulkanMemoryAllocatorDebugLib>
+	<ThirdPartyVulkanSdkLib>vulkan-1.lib</ThirdPartyVulkanSdkLib>
+	</PropertyGroup >
+	<ItemDefinitionGroup />
+	<ItemGroup />
+</Project>

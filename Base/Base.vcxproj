@@ -22,6 +22,7 @@
     <ClInclude Include="source\BaseSample.h" />
     <ClInclude Include="source\ErrorInfo\ErrorInfo.h" />
     <ClInclude Include="source\ErrorInfo\ValidationLayers.h" />
+    <ClInclude Include="source\Helpers\Camera.hpp" />
     <ClInclude Include="source\Helpers\Shader.h" />
     <ClInclude Include="source\Helpers\VulkanDevice.h" />
     <ClInclude Include="source\Helpers\VulkanSwapChain.h" />
@@ -75,20 +76,25 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\LibrariesPropertySheet.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\LibrariesPropertySheet.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\LibrariesPropertySheet.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\LibrariesPropertySheet.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)third-party\glfw\include;$(SolutionDir)third-party\glm;$(SolutionDir)third-party\imgui;$(SolutionDir)third-party\stb;$(SolutionDir)third-party\VulkanMemoryAllocator\include;$(SolutionDir)third-party\vulkansdk-include;$(IncludePath)</IncludePath>
+    <IncludePath>$(ThirdPartyGlfwIncludeDir);$(ThirdPartyGlmIncludeDir);$(ThirdPartyImguiIncludeDir);$(ThirdPartyStbIncludeDir);$(ThirdPartyVulkanMemoryAllocatorIncludeDir);$(ThirdPartyVulkanSdkIncludeDir);$(IncludePath)</IncludePath>
+    <ExternalIncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</ExternalIncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>

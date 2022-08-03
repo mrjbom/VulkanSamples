@@ -1,5 +1,4 @@
 #include "BaseSample.h"
-#include "ErrorInfo/ErrorInfo.h"
 #include "ErrorInfo/ValidationLayers.h"
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
@@ -14,10 +13,80 @@ BaseSample::~BaseSample()
 
 static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
-    BaseSample* app = reinterpret_cast<BaseSample*>(glfwGetWindowUserPointer(window));
-    app->base_framebufferResized = true;
-    app->recreateSwapChain();
-    app->draw(); // Draw
+    BaseSample* base = reinterpret_cast<BaseSample*>(glfwGetWindowUserPointer(window));
+    base->base_framebufferResized = true;
+    base->recreateSwapChain();
+    base->draw();
+}
+
+static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    BaseSample* base = reinterpret_cast<BaseSample*>(glfwGetWindowUserPointer(window));
+    switch (key)
+    {
+    case GLFW_KEY_W:
+        if (action == GLFW_PRESS) {
+            base->base_camera.keys.up = true;
+        }
+        else if (action == GLFW_RELEASE) {
+            base->base_camera.keys.up = false;
+        }
+        break;
+    case GLFW_KEY_S:
+        if (action == GLFW_PRESS) {
+            base->base_camera.keys.down = true;
+        }
+        else if (action == GLFW_RELEASE) {
+            base->base_camera.keys.down = false;
+        }
+        break;
+    case GLFW_KEY_A:
+        if (action == GLFW_PRESS) {
+            base->base_camera.keys.left = true;
+        }
+        else if (action == GLFW_RELEASE) {
+            base->base_camera.keys.left = false;
+        }
+        break;
+    case GLFW_KEY_D:
+        if (action == GLFW_PRESS) {
+            base->base_camera.keys.right = true;
+        }
+        else if (action == GLFW_RELEASE) {
+            base->base_camera.keys.right = false;
+        }
+        break;
+    }
+}
+
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    BaseSample* base = reinterpret_cast<BaseSample*>(glfwGetWindowUserPointer(window));
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        double xpos, ypos;
+        glfwGetCursorPos(base->base_window, &xpos, &ypos);
+        base->base_cursorPos.x = (float)xpos;
+        base->base_cursorPos.y = (float)ypos;
+    }
+}
+
+static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    BaseSample* base = reinterpret_cast<BaseSample*>(glfwGetWindowUserPointer(window));
+    // Rotate by 1 degree per X pixels passed by the cursor
+    float xMoveScale = 1.0f / 7;
+    float yMoveScale = 1.0f / 7;
+    if (glfwGetMouseButton(base->base_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+        float dx, dy;
+        dx = (float)xpos - base->base_cursorPos.x;
+        dy = (float)ypos - base->base_cursorPos.y;
+        base->base_cursorPos.x = (float)xpos;
+        base->base_cursorPos.y = (float)ypos;
+        // Along the X-axis(horizontal)
+        base->base_camera.rotate(glm::vec3(0.0f, dx * xMoveScale, 0.0f));
+        // Along the Y-axis(vertical)
+        base->base_camera.rotate(glm::vec3(-dy * yMoveScale, 0.0f, 0.0f));
+    }
 }
 
 void BaseSample::initVulkan()
@@ -40,13 +109,16 @@ void BaseSample::prepare()
     createCommandPoolGraphics();
     createCommandBuffersGraphics();
     createSyncObjects();
-    setupSubmitInfo();
 }
 
 void BaseSample::renderLoop()
 {
     while (!glfwWindowShouldClose(base_window)) {
+        std::chrono::time_point<std::chrono::steady_clock> startTime = std::chrono::steady_clock::now();
         glfwPollEvents();
+        std::chrono::time_point<std::chrono::steady_clock> endTime = std::chrono::steady_clock::now();
+        base_lastEventsPoolTime = std::chrono::duration<double, std::chrono::milliseconds::period>(endTime - startTime).count();
+
         nextFrame();
     }
 }
@@ -59,6 +131,13 @@ void BaseSample::nextFrame()
 void BaseSample::prepareFrame()
 {
     vkWaitForFences(base_vulkanDevice->logicalDevice, 1, &base_inFlightFences[currentFrameIndex], VK_TRUE, UINT64_MAX);
+
+    // Calculating frametime
+    std::chrono::time_point<std::chrono::steady_clock> currentTime = std::chrono::steady_clock::now();
+    static std::chrono::time_point<std::chrono::steady_clock> prevTime(currentTime);
+    base_frameTime = std::chrono::duration<double, std::chrono::milliseconds::period>(currentTime - prevTime).count();
+    base_frameTime -= base_lastEventsPoolTime;
+    prevTime = currentTime;
 
     VkResult result;
     result = vkAcquireNextImageKHR(base_vulkanDevice->logicalDevice, base_vulkanSwapChain->swapChain, UINT64_MAX, base_imageAvailableSemaphores[currentFrameIndex], VK_NULL_HANDLE, &currentImageIndex);
@@ -95,16 +174,15 @@ void BaseSample::submitFrame()
     else if (result != VK_SUCCESS) {
         throw MakeErrorInfo("Failed to present swap chain image!");
     }
-    currentImageIndex = (currentImageIndex + 1) % BASE_MAX_FRAMES_IN_FLIGHT;
+    currentFrameIndex = (currentFrameIndex + 1) % BASE_MAX_FRAMES_IN_FLIGHT;
 }
 
 void BaseSample::recreateSwapChain()
 {
-    int width = 0, height = 0;
-    glfwGetFramebufferSize(base_window, &width, &height);
+    glfwGetFramebufferSize(base_window, &base_windowWidth, &base_windowHeight);
     // Is window minimized
-    while (width == 0 || height == 0) {
-        glfwGetFramebufferSize(base_window, &width, &height);
+    while (base_windowWidth == 0 || base_windowHeight == 0) {
+        glfwGetFramebufferSize(base_window, &base_windowWidth, &base_windowHeight);
         glfwWaitEvents();
     }
 
@@ -189,6 +267,8 @@ void BaseSample::createWindow()
         throw MakeErrorInfo("GLFW: getting primary monitor failed!");
     }
 
+    base_monitor = primaryMonitor;
+
     const GLFWvidmode* videoMode = glfwGetVideoMode(primaryMonitor);
 
     base_windowWidth = int(videoMode->width * WINDOW_WIDTH_SCALE);
@@ -204,6 +284,9 @@ void BaseSample::createWindow()
     glfwSetWindowPos(base_window, base_windowXPos, base_windowYPos);
     glfwSetWindowUserPointer(base_window, this);
     glfwSetFramebufferSizeCallback(base_window, framebufferResizeCallback);
+    glfwSetKeyCallback(base_window, keyCallback);
+    glfwSetMouseButtonCallback(base_window, mouseButtonCallback);
+    glfwSetCursorPosCallback(base_window, cursorPositionCallback);
 }
 
 void BaseSample::createInstance()
@@ -529,7 +612,7 @@ void BaseSample::createSyncObjects()
     }
 }
 
-void BaseSample::setupSubmitInfo()
+void BaseSample::setupSubmitInfo(uint32_t currentFrameIndex)
 {
     base_submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     base_submitInfo.pWaitDstStageMask = base_submittingWaitStages.data();
