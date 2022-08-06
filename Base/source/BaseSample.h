@@ -7,9 +7,11 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vk_mem_alloc.h>
+#include <Windows.h>
 #include "ErrorInfo/ErrorInfo.h"
 #include "Helpers/VulkanDevice.h"
 #include "Helpers/VulkanSwapChain.h"
+#include "Helpers/Shader.h"
 #include "Helpers/Camera.hpp"
 
 class BaseSample
@@ -31,6 +33,8 @@ public:
 
     Camera                              base_camera;
     glm::vec2                           base_cursorPos{};
+    // Rotate camera by 1 degree per X pixels passed by the cursor
+    glm::vec2                           base_mouseSensitivity{ 1.0f / 6, 1.0f / 5 };
 
     // Sample should set its requirements
 
@@ -99,6 +103,16 @@ public:
     // Framebuffers for swap chain images
     std::vector<VkFramebuffer>          base_swapChainFramebuffers;
 
+    // Vulkan Memory Allocator
+    VmaAllocator                        base_vmaAllocator;
+
+    // Depth image and VMA allocation data
+    VkFormat                            base_depthFormat = VK_FORMAT_UNDEFINED;
+    VkImage                             base_depthImage = VK_NULL_HANDLE;
+    VmaAllocation                       base_depthImageAllocation = 0;
+    VmaAllocationInfo                   base_depthImageAllocationInfo{};
+    VkImageView                         base_depthImageView = VK_NULL_HANDLE;
+
     // Command pool for graphics commands(use graphical queue family)
     // Spec says: All command buffers allocated from this command pool must be submitted on queues from the same queue family
     VkCommandPool                       base_commandPoolGraphics = VK_NULL_HANDLE;
@@ -110,10 +124,10 @@ public:
     #define BASE_MAX_FRAMES_IN_FLIGHT 2
 
     // Current frame index(NOT CURRENT SWAP CHAIN IMAGE INDEX)
-    uint32_t currentFrameIndex = 0;
+    uint32_t base_currentFrameIndex = 0;
 
     // Current swap chain image index
-    uint32_t currentImageIndex = 0;
+    uint32_t base_currentImageIndex = 0;
 
     // The image from the swap chain was successfully aquired
     std::vector<VkSemaphore> base_imageAvailableSemaphores;
@@ -176,6 +190,9 @@ public:
     // Get queues
     void prepareDevice();
 
+    // Init Vulkan Memory Allocator
+    void initVma();
+
     // Always redefined by the sample, called when checking the physical device
     // It should check the availability of the required features and mark them as enabled
     // Return FALSE if the device does not meet the requirements
@@ -186,6 +203,9 @@ public:
     // Retrieve swap chain images
     // Create image views
     void createSwapChain();
+
+    // Create depth image
+    void createDepthImage();
 
     // Create general render pass
     void createRenderPass();
@@ -210,3 +230,32 @@ public:
     void finishVulkan();
 };
 
+#define EXAMPLE_MAIN(class_name)                                            \
+int main(int argc, char* argv[])                                            \
+{                                                                           \
+    try                                                                     \
+    {                                                                       \
+        class_name* sample = new class_name();                              \
+        sample->initVulkan();                                               \
+        sample->prepare();                                                  \
+        sample->renderLoop();                                               \
+        sample->cleanup();                                                  \
+        sample->finishVulkan();                                             \
+        delete sample;                                                      \
+    }                                                                       \
+    catch (std::exception ex)                                               \
+    {                                                                       \
+        std::cout << "Exception: " << ex.what() << std::endl;               \
+        return EXIT_FAILURE;                                                \
+    }                                                                       \
+    catch (ErrorInfo errorInfo)                                             \
+    {                                                                       \
+        std::string errInfoStr = "Exception\n"                              \
+            + (std::string)"What: " + errorInfo.what + "\n"                 \
+            + (std::string)"File: " + errorInfo.file + "\n"                 \
+            + (std::string)"Line: " + errorInfo.line + "\n";                \
+        std::cout << errInfoStr;                                            \
+        return EXIT_FAILURE;                                                \
+    }                                                                       \
+    return EXIT_SUCCESS;                                                    \
+}

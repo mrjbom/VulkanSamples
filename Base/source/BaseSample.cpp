@@ -73,19 +73,16 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
 {
     BaseSample* base = reinterpret_cast<BaseSample*>(glfwGetWindowUserPointer(window));
-    // Rotate by 1 degree per X pixels passed by the cursor
-    float xMoveScale = 1.0f / 7;
-    float yMoveScale = 1.0f / 7;
     if (glfwGetMouseButton(base->base_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
         float dx, dy;
         dx = (float)xpos - base->base_cursorPos.x;
         dy = (float)ypos - base->base_cursorPos.y;
         base->base_cursorPos.x = (float)xpos;
         base->base_cursorPos.y = (float)ypos;
-        // Along the X-axis(horizontal)
-        base->base_camera.rotate(glm::vec3(0.0f, dx * xMoveScale, 0.0f));
-        // Along the Y-axis(vertical)
-        base->base_camera.rotate(glm::vec3(-dy * yMoveScale, 0.0f, 0.0f));
+        // Around the Y-axis(horizontal)
+        base->base_camera.rotate(glm::vec3(0.0f, dx * base->base_mouseSensitivity.x, 0.0f));
+        // Around the X-axis(vertical)
+        base->base_camera.rotate(glm::vec3(-dy * base->base_mouseSensitivity.y, 0.0f, 0.0f));
     }
 }
 
@@ -99,11 +96,13 @@ void BaseSample::initVulkan()
     }
     createSurface();
     prepareDevice();
+    initVma();
 }
 
 void BaseSample::prepare()
 {
     createSwapChain();
+    createDepthImage();
     createRenderPass();
     createFramebuffers();
     createCommandPoolGraphics();
@@ -130,7 +129,7 @@ void BaseSample::nextFrame()
 
 void BaseSample::prepareFrame()
 {
-    vkWaitForFences(base_vulkanDevice->logicalDevice, 1, &base_inFlightFences[currentFrameIndex], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(base_vulkanDevice->logicalDevice, 1, &base_inFlightFences[base_currentFrameIndex], VK_TRUE, UINT64_MAX);
 
     // Calculating frametime
     std::chrono::time_point<std::chrono::steady_clock> currentTime = std::chrono::steady_clock::now();
@@ -140,7 +139,7 @@ void BaseSample::prepareFrame()
     prevTime = currentTime;
 
     VkResult result;
-    result = vkAcquireNextImageKHR(base_vulkanDevice->logicalDevice, base_vulkanSwapChain->swapChain, UINT64_MAX, base_imageAvailableSemaphores[currentFrameIndex], VK_NULL_HANDLE, &currentImageIndex);
+    result = vkAcquireNextImageKHR(base_vulkanDevice->logicalDevice, base_vulkanSwapChain->swapChain, UINT64_MAX, base_imageAvailableSemaphores[base_currentFrameIndex], VK_NULL_HANDLE, &base_currentImageIndex);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         recreateSwapChain();
     }
@@ -148,7 +147,7 @@ void BaseSample::prepareFrame()
         throw MakeErrorInfo("Failed to acquire swap chain image!");
     }
 
-    vkResetFences(base_vulkanDevice->logicalDevice, 1, &base_inFlightFences[currentFrameIndex]);
+    vkResetFences(base_vulkanDevice->logicalDevice, 1, &base_inFlightFences[base_currentFrameIndex]);
 }
 
 void BaseSample::draw() { }
@@ -159,11 +158,11 @@ void BaseSample::submitFrame()
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &base_renderFinishedSemaphores[currentFrameIndex];
+    presentInfo.pWaitSemaphores = &base_renderFinishedSemaphores[base_currentFrameIndex];
 
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &base_vulkanSwapChain->swapChain;
-    presentInfo.pImageIndices = &currentImageIndex;
+    presentInfo.pImageIndices = &base_currentImageIndex;
     VkResult result;
     result = vkQueuePresentKHR(base_presentQueue, &presentInfo);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || base_framebufferResized) {
@@ -174,7 +173,7 @@ void BaseSample::submitFrame()
     else if (result != VK_SUCCESS) {
         throw MakeErrorInfo("Failed to present swap chain image!");
     }
-    currentFrameIndex = (currentFrameIndex + 1) % BASE_MAX_FRAMES_IN_FLIGHT;
+    base_currentFrameIndex = (base_currentFrameIndex + 1) % BASE_MAX_FRAMES_IN_FLIGHT;
 }
 
 void BaseSample::recreateSwapChain()
@@ -188,11 +187,22 @@ void BaseSample::recreateSwapChain()
 
     vkDeviceWaitIdle(base_vulkanDevice->logicalDevice);
 
+    // Swap chain
     if (base_vulkanSwapChain) {
         delete base_vulkanSwapChain;
     }
     createSwapChain();
 
+    // Depth image
+    if (base_depthImageView) {
+        vkDestroyImageView(base_vulkanDevice->logicalDevice, base_depthImageView, nullptr);
+    }
+    if (base_depthImage) {
+        vmaDestroyImage(base_vmaAllocator, base_depthImage, base_depthImageAllocation);
+    }
+    createDepthImage();
+
+    // Framebuffer
     for (auto& swapChainFramebuffer : base_swapChainFramebuffers) {
         vkDestroyFramebuffer(base_vulkanDevice->logicalDevice, swapChainFramebuffer, nullptr);
     }
@@ -225,10 +235,22 @@ void BaseSample::finishVulkan()
     if (base_renderPass) {
         vkDestroyRenderPass(base_vulkanDevice->logicalDevice, base_renderPass, nullptr);
     }
+    // Depth image
+    if (base_depthImageView) {
+        vkDestroyImageView(base_vulkanDevice->logicalDevice, base_depthImageView, nullptr);
+    }
+    if (base_depthImage) {
+        vmaDestroyImage(base_vmaAllocator, base_depthImage, base_depthImageAllocation);
+    }
     // Swap chain
     if (base_vulkanSwapChain) {
         delete base_vulkanSwapChain;
     }
+
+    if (base_vmaAllocator) {
+        vmaDestroyAllocator(base_vmaAllocator);
+    }
+
     // Logical device
     if (base_vulkanDevice) {
         delete base_vulkanDevice;
@@ -480,6 +502,17 @@ void BaseSample::prepareDevice()
     }
 }
 
+void BaseSample::initVma()
+{
+    VmaAllocatorCreateInfo allocatorCreateInfo{};
+    allocatorCreateInfo.physicalDevice = base_vulkanDevice->physicalDevice;
+    allocatorCreateInfo.device = base_vulkanDevice->logicalDevice;
+    allocatorCreateInfo.instance = base_instance;
+    allocatorCreateInfo.vulkanApiVersion = base_sampleInstanceRequirements.base_instanceApiVersion;
+
+    vmaCreateAllocator(&allocatorCreateInfo, &base_vmaAllocator);
+}
+
 bool BaseSample::getEnabledFeatures(VkPhysicalDevice physicalDevice) { return false; }
 
 void BaseSample::createSwapChain()
@@ -489,6 +522,76 @@ void BaseSample::createSwapChain()
     
     // Create swap chain
     base_vulkanSwapChain->createSwapChain(base_sampleSwapChainRequirements.base_swapChainPrefferedFormat, base_sampleSwapChainRequirements.base_swapChainPrefferedPresentMode);
+}
+
+VkFormat findSupportedFormat(VkPhysicalDevice physicalDevice, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
+{
+    for (VkFormat format : candidates) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
+            return format;
+        }
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
+            return format;
+        }
+    }
+
+    throw MakeErrorInfo("Failed to find supported format!");
+}
+
+bool hasStencilComponent(VkFormat format) {
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
+void BaseSample::createDepthImage()
+{
+    base_depthFormat = findSupportedFormat(base_vulkanDevice->physicalDevice,
+        { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+    );
+    // Fill image info
+    VkImageCreateInfo imageCreateInfo{};
+    imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageCreateInfo.format = base_depthFormat;
+    imageCreateInfo.extent.width = base_vulkanSwapChain->swapChainExtent.width;
+    imageCreateInfo.extent.height = base_vulkanSwapChain->swapChainExtent.height;
+    imageCreateInfo.extent.depth = 1;
+    imageCreateInfo.mipLevels = 1;
+    imageCreateInfo.arrayLayers = 1;
+    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    // Fill VMA allocation info
+    VmaAllocationCreateInfo allocationCreateInfo{};
+    allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    allocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    if(vmaCreateImage(base_vmaAllocator, &imageCreateInfo, &allocationCreateInfo, &base_depthImage, &base_depthImageAllocation, &base_depthImageAllocationInfo) != VK_SUCCESS) {
+        throw MakeErrorInfo("Failed to create depth image");
+    }
+
+    // Create image view
+    VkImageViewCreateInfo imageViewCreateInfo{};
+    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageViewCreateInfo.image = base_depthImage;
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCreateInfo.format = base_depthFormat;
+    imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+    imageViewCreateInfo.subresourceRange.levelCount = 1;
+    imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+    if (vkCreateImageView(base_vulkanDevice->logicalDevice, &imageViewCreateInfo, nullptr, &base_depthImageView) != VK_SUCCESS) {
+        throw MakeErrorInfo("Failed to create depth image view!");
+    }
 }
 
 void BaseSample::createRenderPass()
@@ -505,15 +608,29 @@ void BaseSample::createRenderPass()
     attachmentsDescriptions.back().stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     attachmentsDescriptions.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     attachmentsDescriptions.back().finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    // attachment description [1] - depth image
+    attachmentsDescriptions.push_back({});
+    attachmentsDescriptions.back().format = base_depthFormat;
+    attachmentsDescriptions.back().samples = VK_SAMPLE_COUNT_1_BIT;
+    attachmentsDescriptions.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachmentsDescriptions.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachmentsDescriptions.back().stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachmentsDescriptions.back().stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachmentsDescriptions.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachmentsDescriptions.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     // Attachments references
     std::vector<VkAttachmentReference> attachmentsReferences;
-    // attachments references [0]
+    // attachments references [0] - swap chain image
     attachmentsReferences.push_back({});
     attachmentsReferences.back().attachment = 0; // Index in the attachmentsDescriptions array
     // The layout specifies which layout we would like the attachment to have during a subpass that uses this reference
     // Vulkan will automatically transition the attachment to this layout when the subpass is started
     attachmentsReferences.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    // attachments references [1] - depth image
+    attachmentsReferences.push_back({});
+    attachmentsReferences.back().attachment = 1;
+    attachmentsReferences.back().layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     // Subpasses
     std::vector<VkSubpassDescription> subpassDescriptions;
@@ -522,14 +639,25 @@ void BaseSample::createRenderPass()
     subpassDescriptions.back().pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpassDescriptions.back().colorAttachmentCount = 1;
     subpassDescriptions.back().pColorAttachments = &attachmentsReferences[0];
+    subpassDescriptions.back().pDepthStencilAttachment = &attachmentsReferences[1];
+
+    VkSubpassDependency depthDependency = {};
+    depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    depthDependency.dstSubpass = 0;
+    depthDependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    depthDependency.srcAccessMask = 0;
+    depthDependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    depthDependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
     // Create renderpass
     VkRenderPassCreateInfo renderpassCreateInfo{};
     renderpassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderpassCreateInfo.attachmentCount = 1;
-    renderpassCreateInfo.pAttachments = &attachmentsDescriptions[0];
+    renderpassCreateInfo.attachmentCount = attachmentsDescriptions.size();
+    renderpassCreateInfo.pAttachments = attachmentsDescriptions.data();
     renderpassCreateInfo.subpassCount = subpassDescriptions.size();
     renderpassCreateInfo.pSubpasses = subpassDescriptions.data();
+    renderpassCreateInfo.dependencyCount = 1;
+    renderpassCreateInfo.pDependencies = &depthDependency;
 
     VkResult result;
     result = vkCreateRenderPass(base_vulkanDevice->logicalDevice, &renderpassCreateInfo, nullptr, &base_renderPass);
@@ -543,15 +671,16 @@ void BaseSample::createFramebuffers()
     base_swapChainFramebuffers.resize(base_vulkanSwapChain->swapChainImagesViews.size());
 
     for (size_t i = 0; i < base_vulkanSwapChain->swapChainImagesViews.size(); i++) {
-        VkImageView attachments[] = {
-            base_vulkanSwapChain->swapChainImagesViews[i]
+        std::vector<VkImageView> attachments = {
+            base_vulkanSwapChain->swapChainImagesViews[i],
+            base_depthImageView
         };
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = base_renderPass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.attachmentCount = attachments.size();
+        framebufferInfo.pAttachments = attachments.data();
         framebufferInfo.width = base_vulkanSwapChain->swapChainExtent.width;
         framebufferInfo.height = base_vulkanSwapChain->swapChainExtent.height;
         framebufferInfo.layers = 1;

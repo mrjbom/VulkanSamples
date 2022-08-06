@@ -1,8 +1,15 @@
 ﻿#include "../../Base/source/BaseSample.h"
 #include "vk_mem_alloc.h"
 
-class DescriptorSets : public BaseSample
+/*
+ *    We want to draw three triangles in different positions (with different matrices),
+ *    we will use one buffer containing the matrices for each triangle
+ *    and reference that buffer using one dynamic descriptor and dynamic offset.
+ */
+
+class DynamicDescriptorSets : public BaseSample
 {
+    static constexpr uint32_t NUMBER_OF_TRIANGLES = 3;
     VkDescriptorPool                descriptorPool = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet>    descriptorSets;
 
@@ -41,10 +48,10 @@ class DescriptorSets : public BaseSample
     VkPipeline          graphicsPipeline = VK_NULL_HANDLE;
 
 public:
-    DescriptorSets()
+    DynamicDescriptorSets()
     {
         // Setting sample requirements
-        base_title = "Descriptor sets";
+        base_title = "Dynamic descriptor sets";
     }
 
     void prepare()
@@ -80,7 +87,7 @@ public:
         vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
     }
 
-    ~DescriptorSets()
+    ~DynamicDescriptorSets()
     {
     }
 
@@ -115,8 +122,19 @@ public:
     {
         // Setting up camera
         base_camera.type = Camera::CameraType::firstperson;
-        base_camera.setPerspective(45.0f, (float)base_windowWidth / (float)base_windowHeight, 0.1f, 10.0f);
-        base_camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.0f));
+        base_camera.setPerspective(45.0f, (float)base_windowWidth / (float)base_windowHeight, 0.1f, 100.0f);
+        base_camera.setTranslation(glm::vec3(0.0f, 0.0f, -6.0f));
+    }
+
+    // Calculate required alignment based on minimum device offset alignment
+    size_t dynamicUniformBufferAllignedSize(size_t originalSize)
+    {
+        size_t minUboAlignment = (size_t)base_vulkanDevice->properties.limits.minUniformBufferOffsetAlignment;
+        size_t alignedSize = originalSize;
+        if (minUboAlignment > 0) {
+            alignedSize = (alignedSize + minUboAlignment - 1) & ~(minUboAlignment - 1);
+        }
+        return alignedSize;
     }
 
     void createBuffers()
@@ -140,16 +158,16 @@ public:
 
         // Map buffer memory and copy vertexes data
         void* mappedBufferData = nullptr;
-        if (vmaMapMemory(base_vmaAllocator, vertexesBufferAllocation, &mappedBufferData) != VK_SUCCESS) {
+        if (vmaMapMemory(base_vmaAllocator, vertexesBufferAllocation, &mappedBufferData)) {
             throw MakeErrorInfo("Failed to map buffer!");
         }
         memcpy(mappedBufferData, vertexes.data(), (size_t)vertexBufferCreateInfo.size);
         vmaUnmapMemory(base_vmaAllocator, vertexesBufferAllocation);
 
-        // UBO matrixes buffer
+        // UBO matrixes buffers
         VkBufferCreateInfo UBOmatrixesBufferCreateInfo{};
         UBOmatrixesBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        UBOmatrixesBufferCreateInfo.size = VkDeviceSize(sizeof(UBOmatrixes));
+        UBOmatrixesBufferCreateInfo.size = (VkDeviceSize)dynamicUniformBufferAllignedSize(sizeof(UBOmatrixes)) * NUMBER_OF_TRIANGLES;
         UBOmatrixesBufferCreateInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
         UBOmatrixesBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
@@ -157,12 +175,12 @@ public:
         UBOmatrixesAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
         UBOmatrixesAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        UBOmatrixesAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // We must use memcpy (not random access!)
-        
+        UBOmatrixesAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+
         UBOmatrixesBuffers.resize(BASE_MAX_FRAMES_IN_FLIGHT);
         UBOmatrixesBufferAllocations.resize(BASE_MAX_FRAMES_IN_FLIGHT);
         UBOmatrixesBufferAllocationInfos.resize(BASE_MAX_FRAMES_IN_FLIGHT);
-        for (uint32_t i = 0; i < UBOmatrixesBuffers.size(); ++i) {
+        for (uint32_t i = 0; i < BASE_MAX_FRAMES_IN_FLIGHT; ++i) {
             if (vmaCreateBuffer(base_vmaAllocator, &UBOmatrixesBufferCreateInfo, &UBOmatrixesAllocationCreateInfo, &UBOmatrixesBuffers[i], &UBOmatrixesBufferAllocations[i], &UBOmatrixesBufferAllocationInfos[i]) != VK_SUCCESS) {
                 throw MakeErrorInfo("Failed to create buffer!");
             }
@@ -174,7 +192,7 @@ public:
         // Binding for descriptor set
         VkDescriptorSetLayoutBinding uboLayoutBinding{};
         uboLayoutBinding.binding = 0;
-        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
         uboLayoutBinding.descriptorCount = 1;
         uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
@@ -192,7 +210,7 @@ public:
     {
         // We need several descriptors to bind the buffer(one per frame)
         VkDescriptorPoolSize descriptorPoolSize{};
-        descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
         descriptorPoolSize.descriptorCount = BASE_MAX_FRAMES_IN_FLIGHT;
 
         VkDescriptorPoolCreateInfo descriptorPoolCreateInfo{};
@@ -231,7 +249,7 @@ public:
             descriptorSetWrite.dstSet = descriptorSets[i];
             descriptorSetWrite.dstBinding = 0;
             descriptorSetWrite.dstArrayElement = 0;
-            descriptorSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
             descriptorSetWrite.descriptorCount = 1;
             descriptorSetWrite.pBufferInfo = &bufferDescriptorInfo;
 
@@ -322,7 +340,7 @@ public:
         rasterizerInfo.rasterizerDiscardEnable = VK_FALSE;
         rasterizerInfo.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizerInfo.lineWidth = 1.0f;
-        rasterizerInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+        rasterizerInfo.cullMode = VK_CULL_MODE_NONE;
         rasterizerInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
         rasterizerInfo.depthBiasEnable = VK_FALSE;
         rasterizerInfo.depthBiasConstantFactor = 0.0f; // Optional
@@ -413,19 +431,45 @@ public:
         static double timeElapsed = 0;
         timeElapsed += base_frameTime;
         static float rotation = 0;
-        UBOmatrixes matrixes{};
-        matrixes.model = glm::rotate(glm::mat4(1.0f), glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
+        UBOmatrixes matrixes[NUMBER_OF_TRIANGLES];
 
         base_camera.updateAspectRatio((float)base_windowWidth / (float)base_windowHeight);
         base_camera.update((float)base_frameTime / 1000.0f);
-        matrixes.projection = base_camera.matrices.perspective;
-        matrixes.view = base_camera.matrices.view;
+
+        for (uint32_t i = 0; i < NUMBER_OF_TRIANGLES; ++i) {
+            matrixes[i].projection = base_camera.matrices.perspective;
+            matrixes[i].view = base_camera.matrices.view;
+        }
+        // translate rotate scale
+        rotation += 45.0f * (float)base_frameTime / 1000.f;
+
+        glm::mat4 transform = glm::mat4(1.0f);
+        transform = glm::translate(transform, glm::vec3(-1.5f, 0.0f, -1.5f));
+        transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
+        transform = glm::scale(transform, glm::vec3(2.0f, 2.0f, 1.0f));
+        matrixes[0].model = transform;
+
+        transform = glm::mat4(1.0f);
+        transform = glm::translate(transform, glm::vec3(0.0f, 0.0f, 0.0f));
+        transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
+        transform = glm::scale(transform, glm::vec3(2.0f, 2.0f, 1.0f));
+        matrixes[1].model = transform;
+        
+        transform = glm::mat4(1.0f);
+        transform = glm::translate(transform, glm::vec3(1.5f, 0.0f, 1.5f));
+        transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
+        transform = glm::scale(transform, glm::vec3(2.0f, 2.0f, 1.0f));
+        matrixes[2].model = transform;
 
         void* mappedBufferData = nullptr;
-        if (vmaMapMemory(base_vmaAllocator, UBOmatrixesBufferAllocations[currentFrame], &mappedBufferData)) {
+        if (vmaMapMemory(base_vmaAllocator, UBOmatrixesBufferAllocations[currentFrame], &mappedBufferData) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to map buffer!");
         }
-        memcpy(mappedBufferData, &matrixes, sizeof(matrixes));
+        for (uint32_t i = 0; i < NUMBER_OF_TRIANGLES; ++i) {
+            byte* ptr = (byte*)mappedBufferData;
+            ptr += dynamicUniformBufferAllignedSize(sizeof(UBOmatrixes)) * i;
+            memcpy((void*)ptr, &matrixes[i], sizeof(UBOmatrixes));
+        }
         vmaUnmapMemory(base_vmaAllocator, UBOmatrixesBufferAllocations[currentFrame]);
     }
 
@@ -471,9 +515,12 @@ public:
         std::vector<VkDeviceSize> offsets(vertexes.size(), 0);
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexesBuffer, offsets.data());
 
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[base_currentFrameIndex], 0, nullptr);
-
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        for (uint32_t i = 0; i < NUMBER_OF_TRIANGLES; ++i) {
+            uint32_t dynamic_offset = dynamicUniformBufferAllignedSize(sizeof(UBOmatrixes) * i);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[base_currentFrameIndex], 1, &dynamic_offset);
+        
+            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        }
 
         vkCmdEndRenderPass(commandBuffer);
 
@@ -483,4 +530,4 @@ public:
     }
 };
 
-EXAMPLE_MAIN(DescriptorSets)
+EXAMPLE_MAIN(DynamicDescriptorSets)

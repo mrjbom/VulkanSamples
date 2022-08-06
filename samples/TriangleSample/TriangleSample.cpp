@@ -1,13 +1,8 @@
 #include "../../Base/source/BaseSample.h"
-#include "../../Base/source/ErrorInfo/ErrorInfo.h"
-#include "../../Base/source/Helpers/Shader.h"
 #include "vk_mem_alloc.h"
-#include <glm/glm.hpp>
 
 class TriangleSample : public BaseSample
 {
-    VmaAllocator vmaAllocator;
-
     struct Vertex
     {
         glm::vec3 position;
@@ -42,7 +37,6 @@ public:
     void prepare()
     {
         BaseSample::prepare();
-        initVma();
         createBuffers();
         createGraphicsPipeline();
     }
@@ -53,12 +47,13 @@ public:
         BaseSample::prepareFrame();
         
         // Record command buffer
-        vkResetCommandBuffer(base_commandBuffersGraphics[currentFrameIndex], 0);
-        recordCommandBuffer(base_commandBuffersGraphics[currentFrameIndex], currentImageIndex);
+        vkResetCommandBuffer(base_commandBuffersGraphics[base_currentFrameIndex], 0);
+        recordCommandBuffer(base_commandBuffersGraphics[base_currentFrameIndex], base_currentImageIndex);
 
         base_submitInfo.commandBufferCount = 1;
-        base_submitInfo.pCommandBuffers = &base_commandBuffersGraphics[currentFrameIndex];
-        if (vkQueueSubmit(base_graphicsQueue, 1, &base_submitInfo, base_inFlightFences[currentFrameIndex]) != VK_SUCCESS) {
+        base_submitInfo.pCommandBuffers = &base_commandBuffersGraphics[base_currentFrameIndex];
+        setupSubmitInfo(base_currentFrameIndex);
+        if (vkQueueSubmit(base_graphicsQueue, 1, &base_submitInfo, base_inFlightFences[base_currentFrameIndex]) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to submit command buffer!");
         }
 
@@ -77,10 +72,7 @@ public:
         vkDestroyPipeline(base_vulkanDevice->logicalDevice, graphicsPipeline, nullptr);
 
         // Buffer
-        vmaDestroyBuffer(vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
-
-        // Allocator
-        vmaDestroyAllocator(vmaAllocator);
+        vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
     }
 
     ~TriangleSample()
@@ -90,17 +82,6 @@ public:
     bool getEnabledFeatures(VkPhysicalDevice physicalDevice)
     {
         return true;
-    }
-
-    void initVma()
-    {
-        VmaAllocatorCreateInfo allocatorCreateInfo{};
-        allocatorCreateInfo.physicalDevice = base_vulkanDevice->physicalDevice;
-        allocatorCreateInfo.device = base_vulkanDevice->logicalDevice;
-        allocatorCreateInfo.instance = base_instance;
-        allocatorCreateInfo.vulkanApiVersion = base_sampleInstanceRequirements.base_instanceApiVersion;
-
-        vmaCreateAllocator(&allocatorCreateInfo, &vmaAllocator);
     }
 
     void createBuffers()
@@ -117,17 +98,17 @@ public:
                                              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // We must use memcpy (not random access!)
 
-        if (vmaCreateBuffer(vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vertexesBuffer, &vertexesBufferAllocation, &vertexesBufferAllocationInfo) != VK_SUCCESS) {
+        if (vmaCreateBuffer(base_vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vertexesBuffer, &vertexesBufferAllocation, &vertexesBufferAllocationInfo) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to create buffer!");
         }
 
         // Map buffer memory and copy vertexes data
         void* bufferMappedData = nullptr;
-        if (vmaMapMemory(vmaAllocator, vertexesBufferAllocation, &bufferMappedData)) {
+        if (vmaMapMemory(base_vmaAllocator, vertexesBufferAllocation, &bufferMappedData)) {
             throw MakeErrorInfo("Failed to map buffer!");
         }
         memcpy(bufferMappedData, vertexes.data(), sizeof(vertexes[0]) * vertexes.size());
-        vmaUnmapMemory(vmaAllocator, vertexesBufferAllocation);
+        vmaUnmapMemory(base_vmaAllocator, vertexesBufferAllocation);
     }
 
     void createGraphicsPipeline()
@@ -230,6 +211,19 @@ public:
         multisamplingInfo.alphaToCoverageEnable = VK_FALSE; // Optional
         multisamplingInfo.alphaToOneEnable = VK_FALSE; // Optional
 
+        // Depth stencil state 
+        VkPipelineDepthStencilStateCreateInfo depthStencilInfo{};
+        depthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencilInfo.depthTestEnable = VK_TRUE;
+        depthStencilInfo.depthWriteEnable = VK_TRUE;
+        depthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+        depthStencilInfo.depthBoundsTestEnable = VK_FALSE;
+        depthStencilInfo.minDepthBounds = 0.0f; // Optional
+        depthStencilInfo.maxDepthBounds = 1.0f; // Optional
+        depthStencilInfo.stencilTestEnable = VK_FALSE;
+        depthStencilInfo.front = {}; // Optional
+        depthStencilInfo.back = {}; // Optional
+
         // Color blending
         VkPipelineColorBlendAttachmentState colorBlendAttachmentInfo{};
         colorBlendAttachmentInfo.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -274,7 +268,7 @@ public:
         pipelineCreateInfo.pViewportState = &viewportAndScissorInfo;
         pipelineCreateInfo.pRasterizationState = &rasterizerInfo;
         pipelineCreateInfo.pMultisampleState = &multisamplingInfo;
-        pipelineCreateInfo.pDepthStencilState = nullptr; // Optional
+        pipelineCreateInfo.pDepthStencilState = &depthStencilInfo;
         pipelineCreateInfo.pColorBlendState = &colorBlendingInfo;
         pipelineCreateInfo.pDynamicState = &dynamicStateInfo;
         pipelineCreateInfo.layout = pipelineLayout;
@@ -301,9 +295,11 @@ public:
         renderPassBeginInfo.framebuffer = base_swapChainFramebuffers[imageIndex];
         renderPassBeginInfo.renderArea.offset = { 0, 0 };
         renderPassBeginInfo.renderArea.extent = base_vulkanSwapChain->swapChainExtent;
-        VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-        renderPassBeginInfo.clearValueCount = 1;
-        renderPassBeginInfo.pClearValues = &clearColor;
+        std::vector<VkClearValue> clearValues(2);
+        clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+        clearValues[1].depthStencil = { 1.0f, 0 };
+        renderPassBeginInfo.clearValueCount = clearValues.size();
+        renderPassBeginInfo.pClearValues = clearValues.data();
 
         vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -336,41 +332,4 @@ public:
     }
 };
 
-int main(int argc, char* argv[])
-{
-    try
-    {
-        TriangleSample* sample = new TriangleSample;
-        sample->initVulkan();
-        sample->prepare();
-        sample->renderLoop();
-
-        sample->cleanup();
-        sample->finishVulkan();
-        delete sample;
-    }
-    catch (std::exception ex)
-    {
-#ifdef _DEBUG
-        std::cout << "Exception: " << ex.what() << std::endl;
-#endif
-        return EXIT_FAILURE;
-    }
-    catch (ErrorInfo errorInfo)
-    {
-#ifdef _DEBUG
-        std::string errInfoStr = "Exception\n"
-            + (std::string)"What: " + errorInfo.what + "\n"
-            + (std::string)"File: " + errorInfo.file + "\n"
-            + (std::string)"Line: " + errorInfo.line + "\n";
-        std::cout << errInfoStr;
-#elif
-        wchar_t* what = new wchar_t[errorInfo.what.size()];
-        mbstowcs(what, errorInfo.what.c_str(), errorInfo.what.size());
-        MessageBox(NULL, what, L"Error", MB_OK);
-        delete what;
-#endif
-        return EXIT_FAILURE;
-    }
-    return EXIT_SUCCESS;
-}
+EXAMPLE_MAIN(TriangleSample)

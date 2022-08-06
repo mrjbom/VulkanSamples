@@ -15,6 +15,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DescriptorSets", "samples\D
 		{73B77158-70B6-44B7-B015-5D3CED88298F} = {73B77158-70B6-44B7-B015-5D3CED88298F}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DynamicDescriptorSets", "samples\DynamicDescriptorSets\DynamicDescriptorSets.vcxproj", "{6A855458-827F-45D3-913F-51037A57F576}"
+	ProjectSection(ProjectDependencies) = postProject
+		{73B77158-70B6-44B7-B015-5D3CED88298F} = {73B77158-70B6-44B7-B015-5D3CED88298F}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -47,6 +52,14 @@ Global
 		{17A57752-2716-4214-A5AD-DE554104D6F6}.Release|x64.Build.0 = Release|x64
 		{17A57752-2716-4214-A5AD-DE554104D6F6}.Release|x86.ActiveCfg = Release|Win32
 		{17A57752-2716-4214-A5AD-DE554104D6F6}.Release|x86.Build.0 = Release|Win32
+		{6A855458-827F-45D3-913F-51037A57F576}.Debug|x64.ActiveCfg = Debug|x64
+		{6A855458-827F-45D3-913F-51037A57F576}.Debug|x64.Build.0 = Debug|x64
+		{6A855458-827F-45D3-913F-51037A57F576}.Debug|x86.ActiveCfg = Debug|Win32
+		{6A855458-827F-45D3-913F-51037A57F576}.Debug|x86.Build.0 = Debug|Win32
+		{6A855458-827F-45D3-913F-51037A57F576}.Release|x64.ActiveCfg = Release|x64
+		{6A855458-827F-45D3-913F-51037A57F576}.Release|x64.Build.0 = Release|x64
+		{6A855458-827F-45D3-913F-51037A57F576}.Release|x86.ActiveCfg = Release|Win32
+		{6A855458-827F-45D3-913F-51037A57F576}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
