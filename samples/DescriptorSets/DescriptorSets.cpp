@@ -27,7 +27,6 @@ class DescriptorSets : public BaseSample
     std::vector<VmaAllocation>      UBOmatrixesBufferAllocations;
     std::vector<VmaAllocationInfo>  UBOmatrixesBufferAllocationInfos{};
     VkDescriptorSetLayout           UBOmatrixesDescriptorSetLayout = VK_NULL_HANDLE;
-    VkDescriptorSet                 UBOmatrixesDescriptorSet = VK_NULL_HANDLE;
 
     std::vector<Vertex> vertexes = {
         { glm::vec3(0.0, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0) },

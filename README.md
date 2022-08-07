@@ -23,3 +23,17 @@ Made like the [SaschaWillems/Vulkan](https://github.com/SaschaWillems/Vulkan/) e
 5. Go to [this](third-party/vulkansdk-include) folder and read README.md
 6. Go to [this](third-party/vulkansdk-libs) folder and read README.md
 7. Go to [this](third-party/vma-libs) folder and read README.md
+
+## Samples
+
+#### [TriangleSample](samples/TriangleSample/)
+Just draws a triangle demonstrating how the base class abstracts the routine
+
+#### [DescriptorSets](samples/DescriptorSets/)
+Demonstrates how descriptors can be used to access uniform buffers from a shader
+
+#### [DynamicDescriptorSets](samples/DynamicDescriptorSets/)
+Demonstrates how one descriptor can be used to access different parts of a buffer
+
+#### [PushConstants](samples/PushConstants/)
+You don't have to use buffers to transfer values to shaders, you can use Push Constants which can transfer small amounts of data to shaders
