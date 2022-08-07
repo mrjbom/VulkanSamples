@@ -37,3 +37,6 @@ Demonstrates how one descriptor can be used to access different parts of a buffe
 
 #### [PushConstants](samples/PushConstants/)
 You don't have to use buffers to transfer values to shaders, you can use Push Constants which can transfer small amounts of data to shaders
+
+#### [SpecializationConstants](samples/SpecializationConstants/)
+Demonstrates how specialization constants can be used to set constant values in shaders when creating a pipeline.
