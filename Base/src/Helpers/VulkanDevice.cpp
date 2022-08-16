@@ -69,7 +69,7 @@ void VulkanDevice::findQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes,
     // Search for dedicated or any queue family that supports compute operations
     if (requiredQueueFamilyTypes & VK_QUEUE_COMPUTE_BIT) {
         // Dedicated queue family - supports VK_QUEUE_COMPUTE_BIT but no VK_QUEUE_GRAPHICS_BIT
-        
+
         // The index of the queue family that supports VK_QUEUE_COMPUTE_BIT but is not necessarily dedicated
         // It is used if was not possible to find a dedicated(which supports only VK_QUEUE_COMPUTE_BIT, but not VK_QUEUE_GRAPHICS_BIT).
         std::optional<uint32_t> first_any;
@@ -136,7 +136,7 @@ void VulkanDevice::findQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes,
                 if (indices.graphics.has_value()) {
                     indices.transfer = indices.graphics;
                     indices.transferFlags = indices.graphicsFlags;
-                } 
+                }
                 else if (indices.compute.has_value()) {
                     indices.transfer = indices.compute;
                     indices.transferFlags = indices.computeFlags;
@@ -153,6 +153,20 @@ void VulkanDevice::findQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes,
         }
     }
 
+    // I want the presentation queue to coincide with the graphic one
+    // so as not to suffer with synchronization and transfer of rights to images
+    if ((requiredQueueFamilyTypes & VK_QUEUE_GRAPHICS_BIT) && (surface)) {
+        VkBool32 presentSupported = VK_FALSE;
+        // Does the graphics queue support present?
+        vkGetPhysicalDeviceSurfaceSupportKHR(this->physicalDevice, indices.graphics.value(), surface, &presentSupported);
+        if (presentSupported) {
+            indices.present = indices.graphics;
+        }
+        else {
+            throw MakeErrorInfo("Graphics queue family not supports present!")
+        }
+    }
+    /*
     // Find queue family that support present
     if (surface && !indices.present.has_value()) {
         VkBool32 presentSupported = VK_FALSE;
@@ -168,6 +182,7 @@ void VulkanDevice::findQueueFamilyIndices(VkQueueFlags requiredQueueFamilyTypes,
             throw MakeErrorInfo("Could not find a queue family that supports present!");
         }
     }
+    */
     this->queueFamilyIndices = indices;
 }
 
@@ -230,4 +245,45 @@ void VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures requiredFeatures
     else if (result == VK_ERROR_FEATURE_NOT_PRESENT) {
         throw MakeErrorInfo("The physical device does not support the required feature! It looks like the sample incorrectly checks and set the required features");
     }
+}
+
+VkCommandBuffer VulkanDevice::beginSingleTimeCommands(VkCommandPool commandPool)
+{
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(this->logicalDevice, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    
+    return commandBuffer;
+}
+
+void VulkanDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool commandPool)
+{
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    VkFence fence;
+    VkFenceCreateInfo fenceCreateInfo = vulkanInitializers::fenceCreateInfo();
+
+    vkCreateFence(this->logicalDevice, &fenceCreateInfo, nullptr, &fence);
+
+    VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, fence));
+    vkWaitForFences(this->logicalDevice, 1, &fence, VK_TRUE, UINT64_MAX);
+
+    vkDestroyFence(this->logicalDevice, fence, nullptr);
+    vkFreeCommandBuffers(this->logicalDevice, commandPool, 1, &commandBuffer);
 }

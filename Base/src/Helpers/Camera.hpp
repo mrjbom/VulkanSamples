@@ -74,6 +74,7 @@ public:
         bool right = false;
         bool up = false;
         bool down = false;
+        bool shift = false;
     } keys;
 
     bool moving()
@@ -161,7 +162,8 @@ public:
                 camFront.z = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
                 camFront = glm::normalize(camFront);
 
-                float moveSpeed = deltaTime * movementSpeed;
+                float movementSpeedWithShift = movementSpeed * 2.0f;
+                float moveSpeed = deltaTime * (keys.shift ? movementSpeedWithShift : movementSpeed);
 
                 if (keys.up)
                     position += camFront * moveSpeed;

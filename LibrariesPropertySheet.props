@@ -2,26 +2,29 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 	<ImportGroup Label="PropertySheets" />
 	<PropertyGroup Label="UserMacros" >
-	<!--Third party libs main dir-->
-	<ThirdPartyLibsDir>$(SolutionDir)third-party</ThirdPartyLibsDir>
-	<!--Third party include dirs-->
-	<ThirdPartyGlfwIncludeDir>$(SolutionDir)third-party\glfw\include</ThirdPartyGlfwIncludeDir>
-	<ThirdPartyGlmIncludeDir>$(SolutionDir)third-party\glm</ThirdPartyGlmIncludeDir>
-	<ThirdPartyImguiIncludeDir>$(SolutionDir)third-party\imgui</ThirdPartyImguiIncludeDir>
-	<ThirdPartyStbIncludeDir>$(SolutionDir)third-party\stb</ThirdPartyStbIncludeDir>
-	<ThirdPartyVulkanMemoryAllocatorIncludeDir>$(SolutionDir)third-party\VulkanMemoryAllocator\include</ThirdPartyVulkanMemoryAllocatorIncludeDir>
-	<ThirdPartyVulkanSdkIncludeDir>$(SolutionDir)third-party\vulkansdk-include</ThirdPartyVulkanSdkIncludeDir>
-	<!--Third party libs dirs-->
+	<!--External include dirs-->
+	<ExternalGlfwIncludeDir>$(SolutionDir)\external\glfw\include</ExternalGlfwIncludeDir>
+	<ExternalGlmIncludeDir>$(SolutionDir)\external\glm</ExternalGlmIncludeDir>
+	<ExternalVmaIncludeDir>$(SolutionDir)\external\vma\include</ExternalVmaIncludeDir>
+	<ExternalKtxIncludeDir>$(SolutionDir)\external\ktx\include</ExternalKtxIncludeDir>
+	<ExternalVulkanIncludeDir>$(SolutionDir)\external\vulkan\include</ExternalVulkanIncludeDir>
+	<!--External libs dirs-->
 	<BaseDebugLibDir>$(SolutionDir)Debug</BaseDebugLibDir>
-	<BaseReleaseLibDir>$(SolutionDir)Release</BaseReleaseLibDir>
-	<ThirdPartyGlfwDebugLibsDir>$(SolutionDir)third-party\glfw-libs\MDd</ThirdPartyGlfwDebugLibsDir>
-	<ThirdPartyVulkanMemoryAllocatorDebugLibsDir>$(SolutionDir)third-party\vma-libs\x32d</ThirdPartyVulkanMemoryAllocatorDebugLibsDir>
-	<ThirdPartyVulkanSdkLibsDir>$(SolutionDir)third-party\vulkansdk-libs\Lib32</ThirdPartyVulkanSdkLibsDir>
-	<!--Third party libs-->
-	<BaseLib>Base.lib</BaseLib>
-	<ThirdPartyGlfwLib>glfw3.lib</ThirdPartyGlfwLib>
-	<ThirdPartyVulkanMemoryAllocatorDebugLib>VulkanMemoryAllocatord.lib</ThirdPartyVulkanMemoryAllocatorDebugLib>
-	<ThirdPartyVulkanSdkLib>vulkan-1.lib</ThirdPartyVulkanSdkLib>
+	<ExternalGlfwLib32DebugDir>$(SolutionDir)\externallibs\glfw\Lib32\Debug</ExternalGlfwLib32DebugDir>
+	<ExternalVmaLib32DebugDir>$(SolutionDir)\externallibs\vma\Lib32\Debug</ExternalVmaLib32DebugDir>
+	<ExternalKtxLib32DebugDir>$(SolutionDir)\externallibs\ktx\Lib32\Debug</ExternalKtxLib32DebugDir>
+	<ExternalVulkanLib32Dir>$(SolutionDir)\externallibs\vulkan\Lib32</ExternalVulkanLib32Dir>
+	<!--External libs files-->
+	<BaseLibName>Base.lib</BaseLibName>
+	<ExternalGlfwLibName>glfw3.lib</ExternalGlfwLibName>
+	<ExternalVmaLib32DebugName>VulkanMemoryAllocatord.lib</ExternalVmaLib32DebugName>
+	<ExternalKtxLib32DebugName>ktx.lib</ExternalKtxLib32DebugName>
+	<ExternalVulkanLib32Name>vulkan-1.lib</ExternalVulkanLib32Name>
+	
+	<!--External libs include string-->
+	<ExternalIncludeDirs>$(ExternalGlfwIncludeDir);$(ExternalGlmIncludeDir);$(ExternalVmaIncludeDir);$(ExternalKtxIncludeDir);$(ExternalVulkanIncludeDir)</ExternalIncludeDirs>
+	<ExternalLibs32Dirs>$(BaseDebugLibDir);$(ExternalGlfwLib32DebugDir);$(ExternalVmaLib32DebugDir);$(ExternalKtxLib32DebugDir);$(ExternalVulkanLib32Dir);</ExternalLibs32Dirs>
+	<ExternalLibs32DebugNames>$(BaseLibName);$(ExternalGlfwLibName);$(ExternalVmaLib32DebugName);$(ExternalKtxLib32DebugName);$(ExternalVulkanLib32Name);</ExternalLibs32DebugNames>
 	</PropertyGroup >
 	<ItemDefinitionGroup />
 	<ItemGroup />

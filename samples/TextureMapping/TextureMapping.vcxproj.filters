@@ -1,6 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="data">
+      <UniqueIdentifier>{6da495ea-241e-4067-8ef4-11dcf789dd5b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="data\shaders">
+      <UniqueIdentifier>{a925937a-b185-495e-a300-ef2833b9815e}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
@@ -13,23 +19,17 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="data">
-      <UniqueIdentifier>{459b5a36-f36b-4538-850b-5a19f49c4969}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="data\shaders">
-      <UniqueIdentifier>{963a7b0d-ec33-4671-b6ef-43d6490bae57}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SpecializationConstants.cpp">
+    <ClCompile Include="TextureMapping.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\SpecializationConstants\shaders\fragshader.frag">
+    <None Include="..\..\data\TextureMapping\shaders\fragshader.frag">
       <Filter>data\shaders</Filter>
     </None>
-    <None Include="..\..\data\SpecializationConstants\shaders\vertshader.vert">
+    <None Include="..\..\data\TextureMapping\shaders\vertshader.vert">
       <Filter>data\shaders</Filter>
     </None>
   </ItemGroup>

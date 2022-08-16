@@ -450,7 +450,5 @@ FodyWeavers.xsd
 # End of https://www.toptal.com/developers/gitignore/api/c++,windows,visualstudio
 
 # My gitignore rules
-third-party/glfw-libs/*
-!third-party/glfw-libs/README.md
-third-party/vulkansdk-include/*
-!third-party/vulkansdk-include/README.md
+external/
+externallibs/

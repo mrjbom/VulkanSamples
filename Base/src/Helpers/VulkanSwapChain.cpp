@@ -10,29 +10,29 @@ VulkanSwapChain::VulkanSwapChain(VulkanDevice* vulkanDevice, VkSurfaceKHR surfac
     this->window = window;
 
     // Get surface capabilities
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkanDevice->physicalDevice, surface, &surfaceSupportDetails.surfaceCapabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkanDevice->physicalDevice, surface, &surfaceSupportDetails.capabilities);
 
     // Get surface supported format
     uint32_t supportedFormatCount = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(vulkanDevice->physicalDevice, surface, &supportedFormatCount, nullptr);
-    surfaceSupportDetails.supportedSurfaceFormats.resize(supportedFormatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(vulkanDevice->physicalDevice, surface, &supportedFormatCount, surfaceSupportDetails.supportedSurfaceFormats.data());
+    surfaceSupportDetails.formats.resize(supportedFormatCount);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(vulkanDevice->physicalDevice, surface, &supportedFormatCount, surfaceSupportDetails.formats.data());
 
     // Get surface supported present modes
     uint32_t supportedPresentModesCount = 0;
     vkGetPhysicalDeviceSurfacePresentModesKHR(vulkanDevice->physicalDevice, surface, &supportedPresentModesCount, nullptr);
-    surfaceSupportDetails.supportedSurfacePresentModes.resize(supportedPresentModesCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(vulkanDevice->physicalDevice, surface, &supportedPresentModesCount, surfaceSupportDetails.supportedSurfacePresentModes.data());
+    surfaceSupportDetails.presentModes.resize(supportedPresentModesCount);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(vulkanDevice->physicalDevice, surface, &supportedPresentModesCount, surfaceSupportDetails.presentModes.data());
 
     // Failed to get data about the surface
-    if (surfaceSupportDetails.supportedSurfaceFormats.empty() || surfaceSupportDetails.supportedSurfacePresentModes.empty()) {
+    if (surfaceSupportDetails.formats.empty() || surfaceSupportDetails.presentModes.empty()) {
         throw MakeErrorInfo("Failed to get data about the swap chain!");
     }
 }
 
 VulkanSwapChain::~VulkanSwapChain()
 {
-    for (const auto& swapChainImageView : this->swapChainImagesViews) {
+    for (const auto& swapChainImageView : this->imagesViews) {
         if (swapChainImageView != VK_NULL_HANDLE) {
             vkDestroyImageView(this->vulkanDevice->logicalDevice, swapChainImageView, nullptr);
         }
@@ -50,11 +50,11 @@ void VulkanSwapChain::createSwapChain(VkSurfaceFormatKHR preferredFormat, VkPres
     setSwapChainExtent();
 
     // Set swap chain image count
-    uint32_t imageCount = surfaceSupportDetails.surfaceCapabilities.minImageCount;
+    uint32_t imageCount = surfaceSupportDetails.capabilities.minImageCount;
     // Try to use minImageCount + 1 images to get better performance
     // Spec says: maxImageCount == 0 means that there is no limit on the number of images, though there may be limits related to the total amount of memory used by presentable images.
-    if (((imageCount + 1) <= surfaceSupportDetails.surfaceCapabilities.maxImageCount) ||
-        (surfaceSupportDetails.surfaceCapabilities.maxImageCount == 0)) {
+    if (((imageCount + 1) <= surfaceSupportDetails.capabilities.maxImageCount) ||
+        (surfaceSupportDetails.capabilities.maxImageCount == 0)) {
         imageCount += 1;
     }
 
@@ -63,9 +63,9 @@ void VulkanSwapChain::createSwapChain(VkSurfaceFormatKHR preferredFormat, VkPres
     swapChainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     swapChainCreateInfo.surface = this->surface;
     swapChainCreateInfo.minImageCount = imageCount;
-    swapChainCreateInfo.imageFormat = swapChainFormat.format;
-    swapChainCreateInfo.imageColorSpace = swapChainFormat.colorSpace;
-    swapChainCreateInfo.imageExtent = swapChainExtent;
+    swapChainCreateInfo.imageFormat = surfaceFormat.format;
+    swapChainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
+    swapChainCreateInfo.imageExtent = surfaceExtent;
     // For non-stereoscopic-3D applications, this value is 1.
     swapChainCreateInfo.imageArrayLayers = 1;
     // We will render directly into these images
@@ -101,10 +101,10 @@ void VulkanSwapChain::createSwapChain(VkSurfaceFormatKHR preferredFormat, VkPres
         swapChainCreateInfo.queueFamilyIndexCount = uniqueQueueFamilyIndecesVect.size();
         swapChainCreateInfo.pQueueFamilyIndices = uniqueQueueFamilyIndecesVect.data();
     }
-    swapChainCreateInfo.preTransform = surfaceSupportDetails.surfaceCapabilities.currentTransform;
+    swapChainCreateInfo.preTransform = surfaceSupportDetails.capabilities.currentTransform;
     // Ignore alpha channel
     swapChainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapChainCreateInfo.presentMode = swapChainPresentMode;
+    swapChainCreateInfo.presentMode = surfacePresentMode;
     // We don't care about the color of pixels that are obscured
     swapChainCreateInfo.clipped = VK_TRUE;
     swapChainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
@@ -117,17 +117,17 @@ void VulkanSwapChain::createSwapChain(VkSurfaceFormatKHR preferredFormat, VkPres
 
     // Retrieving the swap chain images
     vkGetSwapchainImagesKHR(vulkanDevice->logicalDevice, swapChain, &imageCount, nullptr);
-    swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(vulkanDevice->logicalDevice, swapChain, &imageCount, swapChainImages.data());
+    images.resize(imageCount);
+    vkGetSwapchainImagesKHR(vulkanDevice->logicalDevice, swapChain, &imageCount, images.data());
 
     // Create image views for swap chain images
-    swapChainImagesViews.resize(swapChainImages.size());
-    for (uint32_t i = 0; i < swapChainImagesViews.size(); i++) {
+    imagesViews.resize(images.size());
+    for (uint32_t i = 0; i < imagesViews.size(); i++) {
         VkImageViewCreateInfo imageViewCreateInfo{};
         imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageViewCreateInfo.image = swapChainImages[i];
+        imageViewCreateInfo.image = images[i];
         imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        imageViewCreateInfo.format = swapChainFormat.format;
+        imageViewCreateInfo.format = surfaceFormat.format;
         imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
         imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
         imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -138,7 +138,7 @@ void VulkanSwapChain::createSwapChain(VkSurfaceFormatKHR preferredFormat, VkPres
         imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
         imageViewCreateInfo.subresourceRange.layerCount = 1;
         VkResult result;
-        result = vkCreateImageView(vulkanDevice->logicalDevice, &imageViewCreateInfo, nullptr, &swapChainImagesViews[i]);
+        result = vkCreateImageView(vulkanDevice->logicalDevice, &imageViewCreateInfo, nullptr, &imagesViews[i]);
         if (result != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to create image view for swap chain image!");
         }
@@ -147,30 +147,30 @@ void VulkanSwapChain::createSwapChain(VkSurfaceFormatKHR preferredFormat, VkPres
 
 bool VulkanSwapChain::setPrefferedSwapChainFormat(VkSurfaceFormatKHR preferredFormat)
 {
-    for (const auto& supportedSurfaceFormat : surfaceSupportDetails.supportedSurfaceFormats) {
+    for (const auto& supportedSurfaceFormat : surfaceSupportDetails.formats) {
         // preferredFormat is supported
         if (preferredFormat.format == supportedSurfaceFormat.format &&
             preferredFormat.colorSpace == supportedSurfaceFormat.colorSpace) {
-            this->swapChainFormat = preferredFormat;
+            this->surfaceFormat = preferredFormat;
             return true;
         }
     }
     // preferredFormat is not supported
-    this->swapChainFormat = surfaceSupportDetails.supportedSurfaceFormats[0];
+    this->surfaceFormat = surfaceSupportDetails.formats[0];
     return false;
 }
 
 bool VulkanSwapChain::setPrefferedSwapChainPresentMode(VkPresentModeKHR preferredPresentMode)
 {
-    for (const auto& supportedSurfacePresentMode : surfaceSupportDetails.supportedSurfacePresentModes) {
+    for (const auto& supportedSurfacePresentMode : surfaceSupportDetails.presentModes) {
         // preferredPresentMode is supported
         if (preferredPresentMode == supportedSurfacePresentMode) {
-            this->swapChainPresentMode = preferredPresentMode;
+            this->surfacePresentMode = preferredPresentMode;
             return true;
         }
     }
     // preferredPresentMode is not supported
-    this->swapChainPresentMode = VK_PRESENT_MODE_FIFO_KHR; //Only the VK_PRESENT_MODE_FIFO_KHR mode is guaranteed to be supported
+    this->surfacePresentMode = VK_PRESENT_MODE_FIFO_KHR; //Only the VK_PRESENT_MODE_FIFO_KHR mode is guaranteed to be supported
     return false;
 }
 
@@ -179,8 +179,8 @@ void VulkanSwapChain::setSwapChainExtent()
     // Spec says:
     // VkSurfaceCapabilitiesKHR::currentExtent special value (0xFFFFFFFF, 0xFFFFFFFF) indicating
     // that the surface size will be determined by the extent of a swapchain targeting the surface
-    if (surfaceSupportDetails.surfaceCapabilities.currentExtent.width != UINT32_MAX) {
-        swapChainExtent = surfaceSupportDetails.surfaceCapabilities.currentExtent;
+    if (surfaceSupportDetails.capabilities.currentExtent.width != UINT32_MAX) {
+        surfaceExtent = surfaceSupportDetails.capabilities.currentExtent;
         return;
     }
     else {
@@ -192,10 +192,10 @@ void VulkanSwapChain::setSwapChainExtent()
             static_cast<uint32_t>(windowHeight)
         };
 
-        actualExtent.width = std::clamp(actualExtent.width, surfaceSupportDetails.surfaceCapabilities.minImageExtent.width, surfaceSupportDetails.surfaceCapabilities.maxImageExtent.width);
-        actualExtent.height = std::clamp(actualExtent.height, surfaceSupportDetails.surfaceCapabilities.minImageExtent.height, surfaceSupportDetails.surfaceCapabilities.maxImageExtent.height);
+        actualExtent.width = std::clamp(actualExtent.width, surfaceSupportDetails.capabilities.minImageExtent.width, surfaceSupportDetails.capabilities.maxImageExtent.width);
+        actualExtent.height = std::clamp(actualExtent.height, surfaceSupportDetails.capabilities.minImageExtent.height, surfaceSupportDetails.capabilities.maxImageExtent.height);
     
-        swapChainExtent = actualExtent;
+        surfaceExtent = actualExtent;
         return;
     }
 }

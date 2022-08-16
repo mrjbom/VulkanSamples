@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{6a855458-827f-45d3-913f-51037a57f576}</ProjectGuid>
-    <RootNamespace>DynamicDescriptorSets</RootNamespace>
+    <ProjectGuid>{0915f7bd-8435-45a3-a997-ac25bd830ce6}</ProjectGuid>
+    <RootNamespace>TextureMapping</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -100,7 +100,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>%(AdditionalDependencies);$(ExternalLibs32DebugNames);</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);$(ExternalLibs32DebugNames)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -148,12 +148,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="DynamicDescriptorSets.cpp" />
+    <ClCompile Include="TextureMapping.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\DynamicDescriptorSets\shaders\fragshader.frag" />
-    <None Include="..\..\data\DynamicDescriptorSets\shaders\vertshader.vert" />
-    <None Include="README.md" />
+    <None Include="..\..\data\TextureMapping\shaders\fragshader.frag" />
+    <None Include="..\..\data\TextureMapping\shaders\vertshader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

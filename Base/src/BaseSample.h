@@ -11,8 +11,12 @@
 #include "ErrorInfo/ErrorInfo.h"
 #include "Helpers/VulkanDevice.h"
 #include "Helpers/VulkanSwapChain.h"
-#include "Helpers/Shader.h"
+#include "Helpers/VulkanInitializers.hpp"
+#include "Helpers/VulkanTools.h"
+#include "Helpers/VulkanTexture.h"
 #include "Helpers/Camera.hpp"
+#include "Helpers/ImGuiUI.h"
+#include "Helpers/UIOverlay.hpp"
 
 class BaseSample
 {
@@ -59,7 +63,7 @@ public:
         // Enabled(required, setting up by sample) device features
         VkPhysicalDeviceFeatures        base_deviceEnabledFeatures{};
         // Required queue family types(setting up by sample)
-        VkQueueFlags                    base_deviceRequiredQueueFamilyTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT;
+        VkQueueFlags                    base_deviceRequiredQueueFamilyTypes = VK_QUEUE_GRAPHICS_BIT;
     };
     SampleDeviceRequirements base_sampleDeviceRequirements;
 
@@ -120,7 +124,7 @@ public:
     // Command buffers for graphics operation allocated from graphics command pool
     std::vector<VkCommandBuffer>        base_commandBuffersGraphics;
 
-    // Sync objects for rendering
+    // The number of frames that can be rendered in parallel
     #define BASE_MAX_FRAMES_IN_FLIGHT 2
 
     // Current frame index(NOT CURRENT SWAP CHAIN IMAGE INDEX)
@@ -142,8 +146,10 @@ public:
     VkSubmitInfo base_submitInfo{};
 
     // Specify which stages to wait on before command buffer execution begins
-    // VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-    std::vector<VkPipelineStageFlags> base_submittingWaitStages = { VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT };
+    std::vector<VkPipelineStageFlags> base_submittingWaitStages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+    // ImGuiUI object
+    ImGuiUI imguiUI;
 public:
     BaseSample();
     virtual ~BaseSample();
@@ -226,6 +232,8 @@ public:
     // Semaphores will stay the same during application lifetime
     // Command buffer submission info is set by each example
     void setupSubmitInfo(uint32_t currentFrameIndex);
+
+    virtual void drawUI();
 
     void finishVulkan();
 };

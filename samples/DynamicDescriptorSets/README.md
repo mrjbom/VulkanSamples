@@ -1,4 +1,3 @@
-
 # Dynamic Descriptor Sets
 
 Using one buffer containing matrices for several objects and one descriptor of **VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC** type to access different parts of the buffer.

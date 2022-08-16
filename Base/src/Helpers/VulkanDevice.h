@@ -5,6 +5,7 @@
 #include <optional>
 #include <vulkan/vulkan.h>
 #include "VulkanDevice.h"
+#include "VulkanTools.h"
 
 class VulkanDevice
 {
@@ -51,4 +52,12 @@ public:
 
     // Create logical device
     void createLogicalDevice(VkPhysicalDeviceFeatures requiredFeatures, std::vector<std::string> requiredExtensionsNames);
+
+    // Allocates the command buffer from the command pool and starts recording commands to it
+    VkCommandBuffer beginSingleTimeCommands(VkCommandPool commandPool);
+
+    // Completes writing to command buffer, and submit it to the queue for execution
+    // Waits until the command buffer has been executed and free it
+    // The command pool must be created with the flag
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool commandPool);
 };

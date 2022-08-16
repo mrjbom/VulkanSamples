@@ -26,12 +26,12 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="data\shaders\fragshader.frag">
-      <Filter>data\shaders</Filter>
-    </None>
-    <None Include="data\shaders\vertshader.vert">
-      <Filter>data\shaders</Filter>
-    </None>
     <None Include="README.md" />
+    <None Include="..\..\data\DynamicDescriptorSets\shaders\fragshader.frag">
+      <Filter>data\shaders</Filter>
+    </None>
+    <None Include="..\..\data\DynamicDescriptorSets\shaders\vertshader.vert">
+      <Filter>data\shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

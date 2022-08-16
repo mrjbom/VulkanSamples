@@ -15,20 +15,20 @@ public:
     VulkanDevice*               vulkanDevice = nullptr;
     VkSurfaceKHR                surface = VK_NULL_HANDLE;
     VkSwapchainKHR              swapChain = VK_NULL_HANDLE;
-    std::vector<VkImage>        swapChainImages;
-    std::vector<VkImageView>    swapChainImagesViews;
+    std::vector<VkImage>        images;
+    std::vector<VkImageView>    imagesViews;
     class SurfaceSupportDetails
     {
     public:
-        VkSurfaceCapabilitiesKHR        surfaceCapabilities{};
-        std::vector<VkSurfaceFormatKHR> supportedSurfaceFormats;
-        std::vector<VkPresentModeKHR>   supportedSurfacePresentModes;
+        VkSurfaceCapabilitiesKHR        capabilities{};
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR>   presentModes;
     };
     SurfaceSupportDetails       surfaceSupportDetails;
 
-    VkSurfaceFormatKHR          swapChainFormat{};
-    VkPresentModeKHR            swapChainPresentMode{};
-    VkExtent2D                  swapChainExtent{};
+    VkSurfaceFormatKHR          surfaceFormat{};
+    VkPresentModeKHR            surfacePresentMode{};
+    VkExtent2D                  surfaceExtent{};
     
     // Collects and save data about swapchain for VulkanDevice
     // Choose optimal swap chain parameters (format, present mode and extent)

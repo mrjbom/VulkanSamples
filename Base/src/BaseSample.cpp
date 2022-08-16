@@ -22,6 +22,16 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     BaseSample* base = reinterpret_cast<BaseSample*>(glfwGetWindowUserPointer(window));
+    // The keyboard is used for typing in ImGui (for example, printing text), we must ignore keystrokes so that the camera would stand flat.
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureKeyboard) {
+        // Stop moving
+        base->base_camera.keys.up = false;
+        base->base_camera.keys.down = false;
+        base->base_camera.keys.left = false;
+        base->base_camera.keys.right = false;
+        return;
+    }
     switch (key)
     {
     case GLFW_KEY_W:
@@ -56,6 +66,14 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
             base->base_camera.keys.right = false;
         }
         break;
+    case GLFW_KEY_LEFT_SHIFT:
+        if (action == GLFW_PRESS) {
+            base->base_camera.keys.shift = true;
+        }
+        else if (action == GLFW_RELEASE) {
+            base->base_camera.keys.shift = false;
+        }
+        break;
     }
 }
 
@@ -79,6 +97,12 @@ static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
         dy = (float)ypos - base->base_cursorPos.y;
         base->base_cursorPos.x = (float)xpos;
         base->base_cursorPos.y = (float)ypos;
+        // The mouse moves over the ImGui window, we want to ignore the mouse so that the camera would stand
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.WantCaptureMouse) {
+            return;
+        }
+        
         // Around the Y-axis(horizontal)
         base->base_camera.rotate(glm::vec3(0.0f, dx * base->base_mouseSensitivity.x, 0.0f));
         // Around the X-axis(vertical)
@@ -108,6 +132,16 @@ void BaseSample::prepare()
     createCommandPoolGraphics();
     createCommandBuffersGraphics();
     createSyncObjects();
+    imguiUI.initImGui(
+        base_instance,
+        base_vulkanDevice,
+        base_graphicsQueue,
+        base_vulkanSwapChain->surfaceSupportDetails.capabilities.minImageCount,
+        base_vulkanSwapChain->images.size(),
+        base_vulkanSwapChain,
+        base_window,
+        BASE_MAX_FRAMES_IN_FLIGHT
+    );
 }
 
 void BaseSample::renderLoop()
@@ -193,6 +227,9 @@ void BaseSample::recreateSwapChain()
     }
     createSwapChain();
 
+    // ImGui resources must be recreated
+    imguiUI.resize(base_vulkanSwapChain);
+
     // Depth image
     if (base_depthImageView) {
         vkDestroyImageView(base_vulkanDevice->logicalDevice, base_depthImageView, nullptr);
@@ -213,6 +250,8 @@ void BaseSample::finishVulkan()
 {
     vkDeviceWaitIdle(base_vulkanDevice->logicalDevice);
 
+    // ImGuiUI resources
+    imguiUI.cleanupImGui();
     // Synchronization objects
     for (auto& imageAvailableSemaphore : base_imageAvailableSemaphores) {
         vkDestroySemaphore(base_vulkanDevice->logicalDevice, imageAvailableSemaphore, nullptr);
@@ -303,6 +342,9 @@ void BaseSample::createWindow()
         throw MakeErrorInfo("GLFW: window creation failed!");
     }
 
+    // Hand minimization of height or width to 0 is badly handled.
+    // Full minimization with the minimize button is handled correctly(window size in this case is (0;0)).
+    glfwSetWindowSizeLimits(base_window, 1, 1, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwSetWindowPos(base_window, base_windowXPos, base_windowYPos);
     glfwSetWindowUserPointer(base_window, this);
     glfwSetFramebufferSizeCallback(base_window, framebufferResizeCallback);
@@ -524,41 +566,18 @@ void BaseSample::createSwapChain()
     base_vulkanSwapChain->createSwapChain(base_sampleSwapChainRequirements.base_swapChainPrefferedFormat, base_sampleSwapChainRequirements.base_swapChainPrefferedPresentMode);
 }
 
-VkFormat findSupportedFormat(VkPhysicalDevice physicalDevice, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
-{
-    for (VkFormat format : candidates) {
-        VkFormatProperties props;
-        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
-
-        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
-            return format;
-        }
-        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
-            return format;
-        }
-    }
-
-    throw MakeErrorInfo("Failed to find supported format!");
-}
-
-bool hasStencilComponent(VkFormat format) {
-    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
-}
-
 void BaseSample::createDepthImage()
 {
-    base_depthFormat = findSupportedFormat(base_vulkanDevice->physicalDevice,
-        { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-    );
+    if (!vulkanTools::getSupportedDepthFormat(this->base_vulkanDevice->physicalDevice, &base_depthFormat)) {
+        throw MakeErrorInfo("Failed to find supported depth format!");
+    }
     // Fill image info
     VkImageCreateInfo imageCreateInfo{};
     imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
     imageCreateInfo.format = base_depthFormat;
-    imageCreateInfo.extent.width = base_vulkanSwapChain->swapChainExtent.width;
-    imageCreateInfo.extent.height = base_vulkanSwapChain->swapChainExtent.height;
+    imageCreateInfo.extent.width = base_vulkanSwapChain->surfaceExtent.width;
+    imageCreateInfo.extent.height = base_vulkanSwapChain->surfaceExtent.height;
     imageCreateInfo.extent.depth = 1;
     imageCreateInfo.mipLevels = 1;
     imageCreateInfo.arrayLayers = 1;
@@ -599,17 +618,17 @@ void BaseSample::createRenderPass()
     // Attachments descriptions
     std::vector<VkAttachmentDescription> attachmentsDescriptions;
     // attachment description [0] - swap chain image
-    attachmentsDescriptions.push_back({});
-    attachmentsDescriptions.back().format = base_vulkanSwapChain->swapChainFormat.format;
+    attachmentsDescriptions.push_back({ });
+    attachmentsDescriptions.back().format = base_vulkanSwapChain->surfaceFormat.format;
     attachmentsDescriptions.back().samples = VK_SAMPLE_COUNT_1_BIT;
     attachmentsDescriptions.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachmentsDescriptions.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachmentsDescriptions.back().stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachmentsDescriptions.back().stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     attachmentsDescriptions.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachmentsDescriptions.back().finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    attachmentsDescriptions.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     // attachment description [1] - depth image
-    attachmentsDescriptions.push_back({});
+    attachmentsDescriptions.push_back({ });
     attachmentsDescriptions.back().format = base_depthFormat;
     attachmentsDescriptions.back().samples = VK_SAMPLE_COUNT_1_BIT;
     attachmentsDescriptions.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -622,32 +641,56 @@ void BaseSample::createRenderPass()
     // Attachments references
     std::vector<VkAttachmentReference> attachmentsReferences;
     // attachments references [0] - swap chain image
-    attachmentsReferences.push_back({});
+    attachmentsReferences.push_back({ });
     attachmentsReferences.back().attachment = 0; // Index in the attachmentsDescriptions array
     // The layout specifies which layout we would like the attachment to have during a subpass that uses this reference
     // Vulkan will automatically transition the attachment to this layout when the subpass is started
     attachmentsReferences.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     // attachments references [1] - depth image
-    attachmentsReferences.push_back({});
+    attachmentsReferences.push_back({ });
     attachmentsReferences.back().attachment = 1;
     attachmentsReferences.back().layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     // Subpasses
     std::vector<VkSubpassDescription> subpassDescriptions;
     // subbpass [0]
-    subpassDescriptions.push_back({});
+    subpassDescriptions.push_back({ });
     subpassDescriptions.back().pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpassDescriptions.back().colorAttachmentCount = 1;
     subpassDescriptions.back().pColorAttachments = &attachmentsReferences[0];
     subpassDescriptions.back().pDepthStencilAttachment = &attachmentsReferences[1];
 
-    VkSubpassDependency depthDependency = {};
-    depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    depthDependency.dstSubpass = 0;
-    depthDependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    depthDependency.srcAccessMask = 0;
-    depthDependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    depthDependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    // Subpass dependencies
+    std::vector<VkSubpassDependency> subpassDependencies;
+    subpassDependencies.push_back({ });
+    // Swap chain image color attachment
+    // Now, putting it all together:
+    // the semaphore signal from vkAcquireNextImage makes the swapchain image available from the read of the presentation engine.
+    // The semaphore wait in vkQueueSubmit makes the swapchain image visible to all commands in the Batch limited to COLOR_ATTACHMENT_OUTPUT.
+    // The VkSubpassDependency chains to that semaphore wait. The image is still visible to, so no additional memory dependency is needed and so our .srcAccessMask is 0.
+    // The layout transition writes the image and makes it (implicitly) available from the layout transition and visible to whatever the .dst* was provided to the VkSubpassDependency.
+    subpassDependencies.back().srcSubpass = VK_SUBPASS_EXTERNAL;
+    subpassDependencies.back().dstSubpass = 0;
+    subpassDependencies.back().srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpassDependencies.back().srcAccessMask = 0;
+    subpassDependencies.back().dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpassDependencies.back().dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    // Why .dstAccessMask not 0?
+    // The load operation for each sample in an attachment happens-before any recorded command which accesses the sample in the first subpass where the attachment is used. 
+    // Load operations for attachments with a color format execute in the VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT pipeline stage.
+    // VK_ATTACHMENT_LOAD_OP_LOAD [...] For attachments with a color format, this uses the access type VK_ACCESS_COLOR_ATTACHMENT_READ_BIT.
+    //VK_ATTACHMENT_LOAD_OP_CLEAR(or VK_ATTACHMENT_LOAD_OP_DONT_CARE) [...] For attachments with a color format, this uses the access type VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.
+
+    // Depth attachment image subpass depencency
+    // We have to wait until another frame (rendered in parallel and using the same depth image)
+    // finishes its operations with the depth image
+    subpassDependencies.push_back({ });
+    subpassDependencies.back().srcSubpass = VK_SUBPASS_EXTERNAL;
+    subpassDependencies.back().dstSubpass = 0;
+    subpassDependencies.back().srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    subpassDependencies.back().srcAccessMask = 0;
+    subpassDependencies.back().dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    subpassDependencies.back().dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
     // Create renderpass
     VkRenderPassCreateInfo renderpassCreateInfo{};
@@ -656,8 +699,8 @@ void BaseSample::createRenderPass()
     renderpassCreateInfo.pAttachments = attachmentsDescriptions.data();
     renderpassCreateInfo.subpassCount = subpassDescriptions.size();
     renderpassCreateInfo.pSubpasses = subpassDescriptions.data();
-    renderpassCreateInfo.dependencyCount = 1;
-    renderpassCreateInfo.pDependencies = &depthDependency;
+    renderpassCreateInfo.dependencyCount = subpassDependencies.size();
+    renderpassCreateInfo.pDependencies = subpassDependencies.data();
 
     VkResult result;
     result = vkCreateRenderPass(base_vulkanDevice->logicalDevice, &renderpassCreateInfo, nullptr, &base_renderPass);
@@ -668,24 +711,24 @@ void BaseSample::createRenderPass()
 
 void BaseSample::createFramebuffers()
 {
-    base_swapChainFramebuffers.resize(base_vulkanSwapChain->swapChainImagesViews.size());
+    base_swapChainFramebuffers.resize(base_vulkanSwapChain->imagesViews.size());
 
-    for (size_t i = 0; i < base_vulkanSwapChain->swapChainImagesViews.size(); i++) {
+    for (size_t i = 0; i < base_vulkanSwapChain->imagesViews.size(); i++) {
         std::vector<VkImageView> attachments = {
-            base_vulkanSwapChain->swapChainImagesViews[i],
+            base_vulkanSwapChain->imagesViews[i],
             base_depthImageView
         };
 
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = base_renderPass;
-        framebufferInfo.attachmentCount = attachments.size();
-        framebufferInfo.pAttachments = attachments.data();
-        framebufferInfo.width = base_vulkanSwapChain->swapChainExtent.width;
-        framebufferInfo.height = base_vulkanSwapChain->swapChainExtent.height;
-        framebufferInfo.layers = 1;
+        VkFramebufferCreateInfo framebufferCreateInfo{};
+        framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.renderPass = base_renderPass;
+        framebufferCreateInfo.attachmentCount = attachments.size();
+        framebufferCreateInfo.pAttachments = attachments.data();
+        framebufferCreateInfo.width = base_vulkanSwapChain->surfaceExtent.width;
+        framebufferCreateInfo.height = base_vulkanSwapChain->surfaceExtent.height;
+        framebufferCreateInfo.layers = 1;
 
-        if (vkCreateFramebuffer(base_vulkanDevice->logicalDevice, &framebufferInfo, nullptr, &base_swapChainFramebuffers[i]) != VK_SUCCESS) {
+        if (vkCreateFramebuffer(base_vulkanDevice->logicalDevice, &framebufferCreateInfo, nullptr, &base_swapChainFramebuffers[i]) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to create framebuffers!");
         }
     }
@@ -750,3 +793,5 @@ void BaseSample::setupSubmitInfo(uint32_t currentFrameIndex)
     base_submitInfo.signalSemaphoreCount = 1;
     base_submitInfo.pSignalSemaphores = &base_renderFinishedSemaphores[currentFrameIndex];
 }
+
+void BaseSample::drawUI() {};

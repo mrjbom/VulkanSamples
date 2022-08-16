@@ -19,20 +19,40 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\BaseSample.h" />
-    <ClInclude Include="source\ErrorInfo\ErrorInfo.h" />
-    <ClInclude Include="source\ErrorInfo\ValidationLayers.h" />
-    <ClInclude Include="source\Helpers\Camera.hpp" />
-    <ClInclude Include="source\Helpers\Shader.h" />
-    <ClInclude Include="source\Helpers\VulkanDevice.h" />
-    <ClInclude Include="source\Helpers\VulkanSwapChain.h" />
+    <ClInclude Include="..\external\imgui\imconfig.h" />
+    <ClInclude Include="..\external\imgui\imgui.h" />
+    <ClInclude Include="..\external\imgui\imgui_impl_glfw.h" />
+    <ClInclude Include="..\external\imgui\imgui_impl_vulkan.h" />
+    <ClInclude Include="..\external\imgui\imgui_internal.h" />
+    <ClInclude Include="..\external\imgui\imstb_rectpack.h" />
+    <ClInclude Include="..\external\imgui\imstb_textedit.h" />
+    <ClInclude Include="..\external\imgui\imstb_truetype.h" />
+    <ClInclude Include="src\BaseSample.h" />
+    <ClInclude Include="src\ErrorInfo\ErrorInfo.h" />
+    <ClInclude Include="src\ErrorInfo\ValidationLayers.h" />
+    <ClInclude Include="src\Helpers\Camera.hpp" />
+    <ClInclude Include="src\Helpers\ImGuiUI.h" />
+    <ClInclude Include="src\Helpers\UIOverlay.hpp" />
+    <ClInclude Include="src\Helpers\VulkanInitializers.hpp" />
+    <ClInclude Include="src\Helpers\VulkanDevice.h" />
+    <ClInclude Include="src\Helpers\VulkanSwapChain.h" />
+    <ClInclude Include="src\Helpers\VulkanTexture.h" />
+    <ClInclude Include="src\Helpers\VulkanTools.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\BaseSample.cpp" />
-    <ClCompile Include="source\ErrorInfo\ValidationLayers.cpp" />
-    <ClCompile Include="source\Helpers\Shader.cpp" />
-    <ClCompile Include="source\Helpers\VulkanDevice.cpp" />
-    <ClCompile Include="source\Helpers\VulkanSwapChain.cpp" />
+    <ClCompile Include="..\external\imgui\imgui.cpp" />
+    <ClCompile Include="..\external\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\external\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\external\imgui\imgui_impl_glfw.cpp" />
+    <ClCompile Include="..\external\imgui\imgui_impl_vulkan.cpp" />
+    <ClCompile Include="..\external\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\external\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="src\BaseSample.cpp" />
+    <ClCompile Include="src\ErrorInfo\ValidationLayers.cpp" />
+    <ClCompile Include="src\Helpers\ImGuiUI.cpp" />
+    <ClCompile Include="src\Helpers\VulkanDevice.cpp" />
+    <ClCompile Include="src\Helpers\VulkanSwapChain.cpp" />
+    <ClCompile Include="src\Helpers\VulkanTools.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -93,7 +113,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ThirdPartyGlfwIncludeDir);$(ThirdPartyGlmIncludeDir);$(ThirdPartyImguiIncludeDir);$(ThirdPartyStbIncludeDir);$(ThirdPartyVulkanMemoryAllocatorIncludeDir);$(ThirdPartyVulkanSdkIncludeDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(ExternalIncludeDirs);</IncludePath>
     <ExternalIncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</ExternalIncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

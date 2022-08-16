@@ -13,63 +13,126 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\source">
+    <Filter Include="imgui">
+      <UniqueIdentifier>{23f124b3-43b2-48d0-86be-c985bfe80892}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\src">
       <UniqueIdentifier>{275d2c3c-2cc2-4869-87af-6afdb77a2a0d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\source\Helpers">
+    <Filter Include="Source Files\src\Helpers">
       <UniqueIdentifier>{d5563a9d-17bb-435e-b25b-d272cd6203a5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\source">
-      <UniqueIdentifier>{e319253c-a4bc-421f-9aa3-4129c9f908db}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\source\Helpers">
-      <UniqueIdentifier>{08554059-d953-43e3-bb05-6182eab39167}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\source\ErrorInfo">
-      <UniqueIdentifier>{b5bca576-7903-45cf-8221-02061ddbc302}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\source\ErrorInfo">
+    <Filter Include="Source Files\src\ErrorInfo">
       <UniqueIdentifier>{0f2d6a09-1a81-48da-8be9-7d048f17b2cb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\src">
+      <UniqueIdentifier>{e319253c-a4bc-421f-9aa3-4129c9f908db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\src\Helpers">
+      <UniqueIdentifier>{08554059-d953-43e3-bb05-6182eab39167}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\src\ErrorInfo">
+      <UniqueIdentifier>{b5bca576-7903-45cf-8221-02061ddbc302}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\BaseSample.cpp">
-      <Filter>Source Files\source</Filter>
+    <ClCompile Include="..\external\imgui\imgui.cpp">
+      <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="source\ErrorInfo\ValidationLayers.cpp">
-      <Filter>Source Files\source\ErrorInfo</Filter>
+    <ClCompile Include="..\external\imgui\imgui_demo.cpp">
+      <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="source\Helpers\VulkanDevice.cpp">
-      <Filter>Source Files\source\Helpers</Filter>
+    <ClCompile Include="..\external\imgui\imgui_draw.cpp">
+      <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="source\Helpers\VulkanSwapChain.cpp">
-      <Filter>Source Files\source\Helpers</Filter>
+    <ClCompile Include="..\external\imgui\imgui_impl_glfw.cpp">
+      <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="source\Helpers\Shader.cpp">
-      <Filter>Source Files\source\Helpers</Filter>
+    <ClCompile Include="..\external\imgui\imgui_impl_vulkan.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\external\imgui\imgui_tables.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\external\imgui\imgui_widgets.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BaseSample.cpp">
+      <Filter>Source Files\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ErrorInfo\ValidationLayers.cpp">
+      <Filter>Source Files\src\ErrorInfo</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Helpers\ImGuiUI.cpp">
+      <Filter>Source Files\src\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Helpers\VulkanDevice.cpp">
+      <Filter>Source Files\src\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Helpers\VulkanSwapChain.cpp">
+      <Filter>Source Files\src\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Helpers\VulkanTools.cpp">
+      <Filter>Source Files\src\Helpers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\Helpers\VulkanDevice.h">
-      <Filter>Header Files\source\Helpers</Filter>
+    <ClInclude Include="..\external\imgui\imconfig.h">
+      <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="source\BaseSample.h">
-      <Filter>Header Files\source</Filter>
+    <ClInclude Include="..\external\imgui\imgui.h">
+      <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="source\ErrorInfo\ErrorInfo.h">
-      <Filter>Header Files\source\ErrorInfo</Filter>
+    <ClInclude Include="..\external\imgui\imgui_impl_glfw.h">
+      <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="source\ErrorInfo\ValidationLayers.h">
-      <Filter>Header Files\source\ErrorInfo</Filter>
+    <ClInclude Include="..\external\imgui\imgui_impl_vulkan.h">
+      <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="source\Helpers\VulkanSwapChain.h">
-      <Filter>Header Files\source\Helpers</Filter>
+    <ClInclude Include="..\external\imgui\imgui_internal.h">
+      <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="source\Helpers\Shader.h">
-      <Filter>Header Files\source\Helpers</Filter>
+    <ClInclude Include="..\external\imgui\imstb_rectpack.h">
+      <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="source\Helpers\Camera.hpp">
-      <Filter>Header Files\source\Helpers</Filter>
+    <ClInclude Include="..\external\imgui\imstb_textedit.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\imgui\imstb_truetype.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\BaseSample.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ErrorInfo\ErrorInfo.h">
+      <Filter>Header Files\src\ErrorInfo</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ErrorInfo\ValidationLayers.h">
+      <Filter>Header Files\src\ErrorInfo</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers\Camera.hpp">
+      <Filter>Header Files\src\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers\UIOverlay.hpp">
+      <Filter>Header Files\src\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers\ImGuiUI.h">
+      <Filter>Header Files\src\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers\VulkanDevice.h">
+      <Filter>Header Files\src\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers\VulkanInitializers.hpp">
+      <Filter>Header Files\src\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers\VulkanSwapChain.h">
+      <Filter>Header Files\src\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers\VulkanTexture.h">
+      <Filter>Header Files\src\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers\VulkanTools.h">
+      <Filter>Header Files\src\Helpers</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

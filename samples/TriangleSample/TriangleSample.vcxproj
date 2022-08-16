@@ -85,8 +85,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ThirdPartyGlfwIncludeDir);$(ThirdPartyGlmIncludeDir);$(ThirdPartyImguiIncludeDir);$(ThirdPartyStbIncludeDir);$(ThirdPartyVulkanMemoryAllocatorIncludeDir);$(ThirdPartyVulkanSdkIncludeDir);$(IncludePath)</IncludePath>
-    <LibraryPath>$(BaseDebugLibDir);$(ThirdPartyGlfwDebugLibsDir);$(ThirdPartyVulkanMemoryAllocatorDebugLibsDir);$(ThirdPartyVulkanSdkLibsDir);$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ExternalIncludeDirs);</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(ExternalLibs32Dirs)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debugx86|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -125,7 +125,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(BaseLib);$(ThirdPartyGlfwLib);$(ThirdPartyVulkanMemoryAllocatorDebugLib);$(ThirdPartyVulkanSdkLib);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);$(ExternalLibs32DebugNames);</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debugx86|Win32'">
@@ -205,8 +205,8 @@
     <ClCompile Include="TriangleSample.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="data\shaders\fragshader.frag" />
-    <None Include="data\shaders\vertshader.vert" />
+    <None Include="..\..\data\TriangleSample\shaders\fragshader.frag" />
+    <None Include="..\..\data\TriangleSample\shaders\vertshader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

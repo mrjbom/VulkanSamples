@@ -1,4 +1,4 @@
-﻿#include "../../Base/source/BaseSample.h"
+﻿#include "../../Base/src/BaseSample.h"
 #include "vk_mem_alloc.h"
 
 /*
@@ -90,11 +90,21 @@ public:
         vkResetCommandBuffer(base_commandBuffersGraphics[base_currentFrameIndex], 0);
         recordCommandBuffer(base_commandBuffersGraphics[base_currentFrameIndex], base_currentImageIndex);
 
-        base_submitInfo.commandBufferCount = 1;
-        base_submitInfo.pCommandBuffers = &base_commandBuffersGraphics[base_currentFrameIndex];
+        // Draw UI
+        imguiUI.beginFrame();
+        drawUI();
+        imguiUI.endFrame();
+
+        VkCommandBuffer imguiCommandBuffer;
+        imguiCommandBuffer = imguiUI.recordAndGetCommandBuffer(base_currentFrameIndex, base_currentImageIndex);
+
+        std::vector<VkCommandBuffer> submittableCommandBuffer{ base_commandBuffersGraphics[base_currentFrameIndex], imguiCommandBuffer };
+
+        base_submitInfo.commandBufferCount = submittableCommandBuffer.size();
+        base_submitInfo.pCommandBuffers = submittableCommandBuffer.data();
         setupSubmitInfo(base_currentFrameIndex);
         if (vkQueueSubmit(base_graphicsQueue, 1, &base_submitInfo, base_inFlightFences[base_currentFrameIndex]) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to submit command buffer!");
+            throw MakeErrorInfo("Failed to submit command buffers!");
         }
 
         // Present image
@@ -144,9 +154,8 @@ public:
 
     void createGraphicsPipelines()
     {
-        createShaderModuleFromSPV(base_vulkanDevice->logicalDevice, "data/shaders/vertshader.vert.spv", &vertShaderModule);
-        createShaderModuleFromSPV(base_vulkanDevice->logicalDevice, "data/shaders/fragshader.frag.spv", &fragShaderModule);
-
+        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(SpecializationConstants)"/shaders/vertshader.vert.spv");
+        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(SpecializationConstants)"/shaders/fragshader.frag.spv");
         // Cyan triangle
         ColorsSpecializationData cyanSpecializationData{};
         cyanSpecializationData.vertexColorR = 0.0f;
@@ -179,8 +188,8 @@ public:
         specializationInfo.pData = &cyanSpecializationData;
 
         std::vector<VkPipelineShaderStageCreateInfo> shaderStagesCreateInfos = {
-            createShaderStage(vertShaderModule, VK_SHADER_STAGE_VERTEX_BIT),
-            createShaderStage(fragShaderModule, VK_SHADER_STAGE_FRAGMENT_BIT)
+            vulkanInitializers::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule),
+            vulkanInitializers::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule)
         };
 
         // Fragment shader specialization info
@@ -229,14 +238,14 @@ public:
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = (float)base_vulkanSwapChain->swapChainExtent.width;
-        viewport.height = (float)base_vulkanSwapChain->swapChainExtent.height;
+        viewport.width = (float)base_vulkanSwapChain->surfaceExtent.width;
+        viewport.height = (float)base_vulkanSwapChain->surfaceExtent.height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         // Scissor
         VkRect2D scissor{};
         scissor.offset = { 0, 0 };
-        scissor.extent = base_vulkanSwapChain->swapChainExtent;
+        scissor.extent = base_vulkanSwapChain->surfaceExtent;
         // Viewport and scissor state
         VkPipelineViewportStateCreateInfo viewportAndScissorInfo{};
         viewportAndScissorInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -396,7 +405,7 @@ public:
         renderPassBeginInfo.renderPass = base_renderPass;
         renderPassBeginInfo.framebuffer = base_swapChainFramebuffers[imageIndex];
         renderPassBeginInfo.renderArea.offset = { 0, 0 };
-        renderPassBeginInfo.renderArea.extent = base_vulkanSwapChain->swapChainExtent;
+        renderPassBeginInfo.renderArea.extent = base_vulkanSwapChain->surfaceExtent;
         std::vector<VkClearValue> clearValues(2);
         clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
         clearValues[1].depthStencil = { 1.0f, 0 };
@@ -411,14 +420,14 @@ public:
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = float(base_vulkanSwapChain->swapChainExtent.width) / 2;
-        viewport.height = float(base_vulkanSwapChain->swapChainExtent.height);
+        viewport.width = float(base_vulkanSwapChain->surfaceExtent.width) / 2;
+        viewport.height = float(base_vulkanSwapChain->surfaceExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
         VkRect2D scissor{};
         scissor.offset = { 0, 0 };
-        scissor.extent = base_vulkanSwapChain->swapChainExtent;
+        scissor.extent = base_vulkanSwapChain->surfaceExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
         vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MatrixPushConstant), &matrixPushConstant);
