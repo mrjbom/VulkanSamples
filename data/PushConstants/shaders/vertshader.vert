@@ -9,7 +9,8 @@ layout(push_constant) uniform MatrixPushConstant
 
 layout(location = 0) out flat uint vertexIndex;
 
-void main() {
+void main()
+{
     gl_Position = matrixPushConstant.MVPmatrix * vec4(inPosition, 1.0);
     vertexIndex = gl_VertexIndex;
 }

@@ -11,7 +11,8 @@ layout(binding = 0) uniform UBOmatrixes {
 
 layout(location = 0) out vec3 fragColor;
 
-void main() {
+void main()
+{
     gl_Position = matrixes.projection * matrixes.view * matrixes.model * vec4(inPosition, 1.0);
     fragColor = inColor;
 }

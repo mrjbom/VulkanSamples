@@ -7,6 +7,7 @@ layout(push_constant) uniform MatrixPushConstant
 	mat4 MVPmatrix;
 } matrixPushConstant;
 
-void main() {
+void main()
+{
     gl_Position = matrixPushConstant.MVPmatrix * vec4(inPosition, 1.0);
 }

@@ -9,6 +9,7 @@ layout(push_constant) uniform ColorsPushConstant
 
 layout(location = 0) out vec4 outColor;
 
-void main() {
+void main()
+{
     outColor = vec4(colorsPushConstant.vertexColors[vertexIndex]);
 }
