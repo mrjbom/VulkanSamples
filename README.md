@@ -10,12 +10,14 @@ Made like the [SaschaWillems/Vulkan](https://github.com/SaschaWillems/Vulkan/) e
 * KTX lib
 * Vulkan Memory Allocator
 * Any C++17 compiler
+* tiny glTF
 
 ## Preparations
-To compile shaders you can use a Python script ***compileglsl.py*** in the `data` folder
+To compile shaders you can use a Python script *compileglsl.py* in the `data` folder
 
 ## Assets
-To download assets(models and textures) you can run the Python script ***downloadassets.py***
+To download assets(models and textures) you can run the Python script *downloadassets.py*  
+You must also install the gdown library using the `pip install gdown` command
 
 ## Samples
 
