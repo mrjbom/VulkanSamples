@@ -6,7 +6,9 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#pragma warning(push, 0)
 #include <vk_mem_alloc.h>
+#pragma warning(pop)
 #include <Windows.h>
 #include "ErrorInfo/ErrorInfo.h"
 #include "Helpers/VulkanDevice.h"
@@ -17,6 +19,10 @@
 #include "Helpers/Camera.hpp"
 #include "Helpers/ImGuiUI.h"
 #include "Helpers/UIOverlay.hpp"
+#include "Helpers/VulkanglTFModel.h"
+
+const std::string ASSETS_DATA_PATH = "../../data/";
+const std::string ASSETS_DATA_SHADERS_PATH = "../../data/shaders/";
 
 class BaseSample
 {
@@ -38,7 +44,8 @@ public:
     Camera                              base_camera;
     glm::vec2                           base_cursorPos{};
     // Rotate camera by 1 degree per X pixels passed by the cursor
-    glm::vec2                           base_mouseSensitivity{ 1.0f / 6, 1.0f / 5 };
+    glm::vec2                           base_mouseSensitivity{ 1.0f / 6, 1.0f / 6 };
+    float                               base_mouseScrollSensitivity = 0.25f;
 
     // Sample should set its requirements
 
@@ -71,7 +78,7 @@ public:
     {
     public:
         // Preferred surface format, it will be selected if supported, otherwise another will be selected
-        VkSurfaceFormatKHR              base_swapChainPrefferedFormat{ VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+        VkSurfaceFormatKHR              base_swapChainPrefferedFormat{ VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
         // Preferred surface present mode, it will be selected if supported, otherwise another will be selected
         VkPresentModeKHR                base_swapChainPrefferedPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
     };

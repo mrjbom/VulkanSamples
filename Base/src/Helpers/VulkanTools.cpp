@@ -299,7 +299,7 @@ void vulkanTools::exitFatal(const std::string& message, VkResult resultCode)
     exitFatal(message, (int32_t)resultCode);
 }
 
-VkShaderModule vulkanTools::loadShader(VkDevice device, const char* fileName)
+VkShaderModule vulkanTools::loadShader(VkDevice device, std::string fileName)
 {
     std::ifstream is(fileName, std::ios::binary | std::ios::in | std::ios::ate);
 

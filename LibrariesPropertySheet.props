@@ -8,6 +8,7 @@
 	<ExternalVmaIncludeDir>$(SolutionDir)\external\vma\include</ExternalVmaIncludeDir>
 	<ExternalKtxIncludeDir>$(SolutionDir)\external\ktx\include</ExternalKtxIncludeDir>
 	<ExternalVulkanIncludeDir>$(SolutionDir)\external\vulkan\include</ExternalVulkanIncludeDir>
+	<ExternalTinyGltfIncludeDir>$(SolutionDir)\external\tinygltf</ExternalTinyGltfIncludeDir>
 	<!--External libs dirs-->
 	<BaseDebugLibDir>$(SolutionDir)Debug</BaseDebugLibDir>
 	<ExternalGlfwLib32DebugDir>$(SolutionDir)\externallibs\glfw\Lib32\Debug</ExternalGlfwLib32DebugDir>
@@ -22,7 +23,7 @@
 	<ExternalVulkanLib32Name>vulkan-1.lib</ExternalVulkanLib32Name>
 	
 	<!--External libs include string-->
-	<ExternalIncludeDirs>$(ExternalGlfwIncludeDir);$(ExternalGlmIncludeDir);$(ExternalVmaIncludeDir);$(ExternalKtxIncludeDir);$(ExternalVulkanIncludeDir)</ExternalIncludeDirs>
+	<ExternalIncludeDirs>$(ExternalGlfwIncludeDir);$(ExternalGlmIncludeDir);$(ExternalVmaIncludeDir);$(ExternalKtxIncludeDir);$(ExternalVulkanIncludeDir);$(ExternalTinyGltfIncludeDir);</ExternalIncludeDirs>
 	<ExternalLibs32Dirs>$(BaseDebugLibDir);$(ExternalGlfwLib32DebugDir);$(ExternalVmaLib32DebugDir);$(ExternalKtxLib32DebugDir);$(ExternalVulkanLib32Dir);</ExternalLibs32Dirs>
 	<ExternalLibs32DebugNames>$(BaseLibName);$(ExternalGlfwLibName);$(ExternalVmaLib32DebugName);$(ExternalKtxLib32DebugName);$(ExternalVulkanLib32Name);</ExternalLibs32DebugNames>
 	</PropertyGroup >

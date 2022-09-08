@@ -1,7 +1,8 @@
-#include "BaseSample.h"
-#include "ErrorInfo/ValidationLayers.h"
+#pragma warning(push, 0)
 #define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
+#include "BaseSample.h"
+#pragma warning(pop)
+#include "ErrorInfo/ValidationLayers.h"
 
 BaseSample::BaseSample()
 {
@@ -108,6 +109,13 @@ static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
         // Around the X-axis(vertical)
         base->base_camera.rotate(glm::vec3(-dy * base->base_mouseSensitivity.y, 0.0f, 0.0f));
     }
+}
+
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    BaseSample* base = reinterpret_cast<BaseSample*>(glfwGetWindowUserPointer(window));
+    float translateZValue = (float)yoffset * base->base_mouseScrollSensitivity;
+    base->base_camera.translate(glm::vec3(0.0f, 0.0f, translateZValue));
 }
 
 void BaseSample::initVulkan()
@@ -351,6 +359,7 @@ void BaseSample::createWindow()
     glfwSetKeyCallback(base_window, keyCallback);
     glfwSetMouseButtonCallback(base_window, mouseButtonCallback);
     glfwSetCursorPosCallback(base_window, cursorPositionCallback);
+    glfwSetScrollCallback(base_window, scrollCallback);
 }
 
 void BaseSample::createInstance()

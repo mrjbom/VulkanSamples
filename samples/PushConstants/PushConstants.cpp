@@ -1,11 +1,8 @@
 ﻿#include "../../Base/src/BaseSample.h"
-#include "vk_mem_alloc.h"
 
-/*
- *    Using push constants to pass matrix and vertex colors to shaders.
- */
+std::string EXAMPLE_NAME_STR = std::string("PushConstants");
 
-class PushConstants : public BaseSample
+class Sample : public BaseSample
 {
     static constexpr uint32_t NUMBER_OF_TRIANGLES = 3;
 
@@ -44,7 +41,7 @@ class PushConstants : public BaseSample
     VkPipeline          graphicsPipeline = VK_NULL_HANDLE;
 
 public:
-    PushConstants()
+    Sample()
     {
         // Setting sample requirements
         base_title = "Push Constants";
@@ -85,7 +82,7 @@ public:
         vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
     }
 
-    ~PushConstants()
+    ~Sample()
     {
     }
 
@@ -164,8 +161,8 @@ public:
 
     void createGraphicsPipeline()
     {
-        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(PushConstants)"/shaders/vertshader.vert.spv");
-        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(PushConstants)"/shaders/fragshader.frag.spv");
+        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/vertshader.vert.spv");
+        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/fragshader.frag.spv");
 
         std::vector<VkPipelineShaderStageCreateInfo> shaderStagesCreateInfos = {
             vulkanInitializers::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule),
@@ -429,4 +426,4 @@ public:
     }
 };
 
-EXAMPLE_MAIN(PushConstants)
+EXAMPLE_MAIN(Sample)

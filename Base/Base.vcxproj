@@ -33,6 +33,8 @@
     <ClInclude Include="src\Helpers\Camera.hpp" />
     <ClInclude Include="src\Helpers\ImGuiUI.h" />
     <ClInclude Include="src\Helpers\UIOverlay.hpp" />
+    <ClInclude Include="src\Helpers\VulkanBuffer.h" />
+    <ClInclude Include="src\Helpers\VulkanglTFModel.h" />
     <ClInclude Include="src\Helpers\VulkanInitializers.hpp" />
     <ClInclude Include="src\Helpers\VulkanDevice.h" />
     <ClInclude Include="src\Helpers\VulkanSwapChain.h" />
@@ -50,8 +52,11 @@
     <ClCompile Include="src\BaseSample.cpp" />
     <ClCompile Include="src\ErrorInfo\ValidationLayers.cpp" />
     <ClCompile Include="src\Helpers\ImGuiUI.cpp" />
+    <ClCompile Include="src\Helpers\VulkanBuffer.cpp" />
     <ClCompile Include="src\Helpers\VulkanDevice.cpp" />
+    <ClCompile Include="src\Helpers\VulkanglTFModel.cpp" />
     <ClCompile Include="src\Helpers\VulkanSwapChain.cpp" />
+    <ClCompile Include="src\Helpers\VulkanTexture.cpp" />
     <ClCompile Include="src\Helpers\VulkanTools.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

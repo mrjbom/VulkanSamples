@@ -1,7 +1,8 @@
 ﻿#include "../../Base/src/BaseSample.h"
-#include "vk_mem_alloc.h"
 
-class DescriptorSets : public BaseSample
+std::string EXAMPLE_NAME_STR = std::string("DescriptorSets");
+
+class Sample : public BaseSample
 {
     VkDescriptorPool                descriptorPool = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet>    descriptorSets;
@@ -41,7 +42,7 @@ class DescriptorSets : public BaseSample
     VkPipeline          graphicsPipeline = VK_NULL_HANDLE;
 
 public:
-    DescriptorSets()
+    Sample()
     {
         // Setting sample requirements
         base_title = "Descriptor sets";
@@ -80,7 +81,7 @@ public:
         vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
     }
 
-    ~DescriptorSets()
+    ~Sample()
     {
     }
 
@@ -251,8 +252,8 @@ public:
 
     void createGraphicsPipeline()
     {
-        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(DescriptorSets)"/shaders/vertshader.vert.spv");
-        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(DescriptorSets)"/shaders/fragshader.frag.spv");
+        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/vertshader.vert.spv");
+        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/fragshader.frag.spv");
 
         std::vector<VkPipelineShaderStageCreateInfo> shaderStagesCreateInfos = {
             vulkanInitializers::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule),
@@ -498,4 +499,4 @@ public:
     }
 };
 
-EXAMPLE_MAIN(DescriptorSets)
+EXAMPLE_MAIN(Sample)

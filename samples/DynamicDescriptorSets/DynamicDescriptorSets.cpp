@@ -1,13 +1,8 @@
 ﻿#include "../../Base/src/BaseSample.h"
-#include "vk_mem_alloc.h"
 
-/*
- *    We want to draw three triangles in different positions (with different matrices),
- *    we will use one buffer containing the matrices for each triangle
- *    and reference that buffer using one dynamic descriptor and dynamic offset.
- */
+std::string EXAMPLE_NAME_STR = std::string("DynamicDescriptorSets");
 
-class DynamicDescriptorSets : public BaseSample
+class Sample : public BaseSample
 {
     static constexpr uint32_t NUMBER_OF_TRIANGLES = 3;
     VkDescriptorPool                descriptorPool = VK_NULL_HANDLE;
@@ -47,7 +42,7 @@ class DynamicDescriptorSets : public BaseSample
     VkPipeline          graphicsPipeline = VK_NULL_HANDLE;
 
 public:
-    DynamicDescriptorSets()
+    Sample()
     {
         // Setting sample requirements
         base_title = "Dynamic descriptor sets";
@@ -86,7 +81,7 @@ public:
         vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
     }
 
-    ~DynamicDescriptorSets()
+    ~Sample()
     {
     }
 
@@ -268,8 +263,8 @@ public:
 
     void createGraphicsPipeline()
     {
-        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(DynamicDescriptorSets)"/shaders/vertshader.vert.spv");
-        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(DynamicDescriptorSets)"/shaders/fragshader.frag.spv");
+        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/vertshader.vert.spv");
+        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/fragshader.frag.spv");
 
         std::vector<VkPipelineShaderStageCreateInfo> shaderStagesCreateInfos = {
             vulkanInitializers::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule),
@@ -539,4 +534,4 @@ public:
     }
 };
 
-EXAMPLE_MAIN(DynamicDescriptorSets)
+EXAMPLE_MAIN(Sample)

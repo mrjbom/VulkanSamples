@@ -151,8 +151,8 @@
     <ClCompile Include="TextureArray.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\TextureArray\shaders\fragshader.frag" />
-    <None Include="..\..\data\TextureArray\shaders\vertshader.vert" />
+    <None Include="..\..\data\shaders\TextureArray\fragshader.frag" />
+    <None Include="..\..\data\shaders\TextureArray\vertshader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

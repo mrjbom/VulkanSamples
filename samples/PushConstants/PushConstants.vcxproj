@@ -151,8 +151,8 @@
     <ClCompile Include="PushConstants.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\PushConstants\shaders\fragshader.frag" />
-    <None Include="..\..\data\PushConstants\shaders\vertshader.vert" />
+    <None Include="..\..\data\shaders\PushConstants\fragshader.frag" />
+    <None Include="..\..\data\shaders\PushConstants\vertshader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

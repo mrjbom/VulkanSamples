@@ -75,6 +75,15 @@
     <ClCompile Include="src\Helpers\VulkanTools.cpp">
       <Filter>Source Files\src\Helpers</Filter>
     </ClCompile>
+    <ClCompile Include="src\Helpers\VulkanglTFModel.cpp">
+      <Filter>Source Files\src\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Helpers\VulkanTexture.cpp">
+      <Filter>Source Files\src\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Helpers\VulkanBuffer.cpp">
+      <Filter>Source Files\src\Helpers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\external\imgui\imconfig.h">
@@ -132,6 +141,12 @@
       <Filter>Header Files\src\Helpers</Filter>
     </ClInclude>
     <ClInclude Include="src\Helpers\VulkanTools.h">
+      <Filter>Header Files\src\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers\VulkanglTFModel.h">
+      <Filter>Header Files\src\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers\VulkanBuffer.h">
       <Filter>Header Files\src\Helpers</Filter>
     </ClInclude>
   </ItemGroup>

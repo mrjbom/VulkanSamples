@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.h>
 #include "VulkanDevice.h"
 #include "VulkanTools.h"
+#include "vk_mem_alloc.h"
 
 class VulkanDevice
 {
@@ -22,11 +23,11 @@ public:
     {
     public:
         std::optional<uint32_t> graphics;
-        VkQueueFlags            graphicsFlags = 0; //graphical queue family flags
+        VkQueueFlags            graphicsFlags = 0; // Graphical queue family flags
         std::optional<uint32_t> compute;
-        VkQueueFlags            computeFlags = 0;  //compute queue family flags
+        VkQueueFlags            computeFlags = 0;  // Compute queue family flags
         std::optional<uint32_t> transfer;
-        VkQueueFlags            transferFlags = 0; //transfer queue family flags
+        VkQueueFlags            transferFlags = 0; // Transfer queue family flags
         std::optional<uint32_t> present;
     };
     QueueFamilyIndices queueFamilyIndices;
@@ -56,8 +57,8 @@ public:
     // Allocates the command buffer from the command pool and starts recording commands to it
     VkCommandBuffer beginSingleTimeCommands(VkCommandPool commandPool);
 
-    // Completes writing to command buffer, and submit it to the queue for execution
+    // Completes recording to command buffer, and submit it to the queue for execution
     // Waits until the command buffer has been executed and free it
-    // The command pool must be created with the flag
+    // The command pool must be created with the VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT flag
     void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool commandPool);
 };

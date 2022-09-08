@@ -27,10 +27,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
-    <None Include="..\..\data\DynamicDescriptorSets\shaders\fragshader.frag">
+	<None Include="..\..\data\shaders\DynamicDescriptorSets\fragshader.frag">
       <Filter>data\shaders</Filter>
     </None>
-    <None Include="..\..\data\DynamicDescriptorSets\shaders\vertshader.vert">
+    <None Include="..\..\data\shaders\DynamicDescriptorSets\vertshader.vert">
       <Filter>data\shaders</Filter>
     </None>
   </ItemGroup>

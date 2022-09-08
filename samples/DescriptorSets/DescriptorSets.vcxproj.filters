@@ -26,10 +26,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\DescriptorSets\shaders\fragshader.frag">
+    <None Include="..\..\data\shaders\DescriptorSets\fragshader.frag">
       <Filter>data\shaders</Filter>
     </None>
-    <None Include="..\..\data\DescriptorSets\shaders\vertshader.vert">
+    <None Include="..\..\data\shaders\DescriptorSets\vertshader.vert">
       <Filter>data\shaders</Filter>
     </None>
   </ItemGroup>

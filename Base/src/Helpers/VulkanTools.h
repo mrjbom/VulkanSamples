@@ -31,11 +31,9 @@
 //#define DEFAULT_FENCE_TIMEOUT 100000000000
 #define DEFAULT_FENCE_TIMEOUT UINT64_MAX
 
-#define EXAMPLE_ASSETS_PATH(project_name) "../../data/"#project_name
-
 namespace vulkanTools
 {
-    // Macro to check and display Vulkan return results
+// Macro to check and display Vulkan return results
 #define VK_CHECK_RESULT(f)                                                                             \
 {                                                                                                      \
     VkResult vkResult = (f);                                                                           \
@@ -101,7 +99,7 @@ namespace vulkanTools
     void exitFatal(const std::string& message, VkResult resultCode);
 
     // Load a SPIR-V shader (binary)
-    VkShaderModule loadShader(VkDevice device, const char* fileName);
+    VkShaderModule loadShader(VkDevice device, std::string fileName);
 
     /** @brief Checks if a file exists */
     bool fileExists(const std::string& filename);

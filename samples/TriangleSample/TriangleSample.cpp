@@ -1,7 +1,8 @@
 #include "../../Base/src/BaseSample.h"
-#include "vk_mem_alloc.h"
 
-class TriangleSample : public BaseSample
+std::string EXAMPLE_NAME_STR = std::string("TriangleSample");
+
+class Sample : public BaseSample
 {
     struct Vertex
     {
@@ -25,7 +26,7 @@ class TriangleSample : public BaseSample
     VkPipeline graphicsPipeline = VK_NULL_HANDLE;
 
 public:
-    TriangleSample()
+    Sample()
     {
         // Setting sample requirements
         base_title = "Triangle";
@@ -85,7 +86,7 @@ public:
         vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
     }
 
-    ~TriangleSample()
+    ~Sample()
     {
     }
 
@@ -123,8 +124,8 @@ public:
 
     void createGraphicsPipeline()
     {
-        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(TriangleSample)"/shaders/vertshader.vert.spv");
-        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(TriangleSample)"/shaders/fragshader.frag.spv");
+        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/vertshader.vert.spv");
+        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/fragshader.frag.spv");
 
         std::vector<VkPipelineShaderStageCreateInfo> shaderStagesCreateInfos = {
             vulkanInitializers::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule),
@@ -342,4 +343,4 @@ public:
     }
 };
 
-EXAMPLE_MAIN(TriangleSample)
+EXAMPLE_MAIN(Sample)

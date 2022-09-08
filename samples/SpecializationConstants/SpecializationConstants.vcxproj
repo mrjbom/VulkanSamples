@@ -151,8 +151,8 @@
     <ClCompile Include="SpecializationConstants.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\SpecializationConstants\shaders\fragshader.frag" />
-    <None Include="..\..\data\SpecializationConstants\shaders\vertshader.vert" />
+    <None Include="..\..\data\shaders\SpecializationConstants\fragshader.frag" />
+    <None Include="..\..\data\shaders\SpecializationConstants\vertshader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

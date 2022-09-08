@@ -1,7 +1,8 @@
 ﻿#include "../../Base/src/BaseSample.h"
-#include "vk_mem_alloc.h"
 
-class TextureArray : public BaseSample
+std::string EXAMPLE_NAME_STR = std::string("TextureArray");
+
+class Sample : public BaseSample
 {
     // Input vertexes
     struct Vertex
@@ -49,7 +50,7 @@ class TextureArray : public BaseSample
     VkPipeline          graphicsPipeline = VK_NULL_HANDLE;
 
 public:
-    TextureArray()
+    Sample()
     {
         // Setting sample requirements
         base_title = "Texture Array";
@@ -94,7 +95,7 @@ public:
         destroyTexture();
     }
 
-    ~TextureArray()
+    ~Sample()
     {
     }
 
@@ -149,7 +150,7 @@ public:
         // and use an staging buffer to copy the texture data to image memory
 
         // We use the Khronos texture format (https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/)
-        std::string filePath = EXAMPLE_ASSETS_PATH(TextureArray)"/textures/3layers3mips.ktx";
+        std::string filePath = ASSETS_DATA_PATH + "/textures/3layers3mips.ktx";
         // Texture data contains 4 channels (RGBA) with unnormalized 8-bit values, this is the most commonly supported format
         VkFormat textureFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
@@ -442,10 +443,9 @@ public:
         }
 
         // Write descriptor
-        VkDescriptorImageInfo descriptorImageInfo{};
-        descriptorImageInfo.sampler = texture.sampler;
-        descriptorImageInfo.imageView = texture.imageView;
-        descriptorImageInfo.imageLayout = texture.imageLayout;
+        texture.descriptor.sampler = texture.sampler;
+        texture.descriptor.imageView = texture.imageView;
+        texture.descriptor.imageLayout = texture.imageLayout;
 
         VkWriteDescriptorSet writeDescriptorSet{};
         writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -454,15 +454,15 @@ public:
         writeDescriptorSet.dstArrayElement = 0;
         writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writeDescriptorSet.descriptorCount = 1;
-        writeDescriptorSet.pImageInfo = &descriptorImageInfo;
+        writeDescriptorSet.pImageInfo = &texture.descriptor;
 
         vkUpdateDescriptorSets(base_vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
     }
 
     void createGraphicsPipeline()
     {
-        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(TextureArray)"/shaders/vertshader.vert.spv");
-        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(TextureArray)"/shaders/fragshader.frag.spv");
+        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/vertshader.vert.spv");
+        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/fragshader.frag.spv");
 
         std::vector<VkPipelineShaderStageCreateInfo> shaderStagesCreateInfos = {
             vulkanInitializers::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule),
@@ -707,9 +707,9 @@ public:
         ImGui::SliderFloat("LOD bias", &pushConstantData.lodBias, 0.0f, (float)texture.mipLevels);
         static int currentLayer = 0;
         ImGui::SliderInt("Layer", &currentLayer, 0, texture.layerCount - 1);
-        pushConstantData.currentLayer = currentLayer;
+        pushConstantData.currentLayer = (float)currentLayer;
         UIOverlay::windowEnd();
     }
 };
 
-EXAMPLE_MAIN(TextureArray)
+EXAMPLE_MAIN(Sample)

@@ -12,7 +12,10 @@ Made like the [SaschaWillems/Vulkan](https://github.com/SaschaWillems/Vulkan/) e
 * Any C++17 compiler
 
 ## Preparations
-To compile shaders, you can use a Python script in the `data` folder
+To compile shaders you can use a Python script ***compileglsl.py*** in the `data` folder
+
+## Assets
+To download assets(models and textures) you can run the Python script ***downloadassets.py***
 
 ## Samples
 
@@ -37,3 +40,6 @@ The example uses a texture with mip levels and demonstrates how the LOD bias aff
 
 #### [TextureArray](samples/TextureArray/)
 The example demonstrates the use of an image with layers, this allows you to use a single image object as an array
+
+#### [glTFloading](samples/glTFloading/)
+This example demonstrates loading a glTF file with a model

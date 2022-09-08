@@ -450,5 +450,5 @@ FodyWeavers.xsd
 # End of https://www.toptal.com/developers/gitignore/api/c++,windows,visualstudio
 
 # My gitignore rules
-external/
-externallibs/
+data/models/**
+data/textures/**

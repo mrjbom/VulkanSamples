@@ -205,8 +205,8 @@
     <ClCompile Include="TriangleSample.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\TriangleSample\shaders\fragshader.frag" />
-    <None Include="..\..\data\TriangleSample\shaders\vertshader.vert" />
+    <None Include="..\..\data\shaders\TriangleSample\fragshader.frag" />
+    <None Include="..\..\data\shaders\TriangleSample\vertshader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

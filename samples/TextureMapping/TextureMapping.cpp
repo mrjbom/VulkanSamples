@@ -1,7 +1,8 @@
 ﻿#include "../../Base/src/BaseSample.h"
-#include "vk_mem_alloc.h"
 
-class TextureMapping : public BaseSample
+std::string EXAMPLE_NAME_STR = std::string("TextureMapping");
+
+class Sample : public BaseSample
 {
     // Input vertexes
     struct Vertex
@@ -60,7 +61,7 @@ class TextureMapping : public BaseSample
     VkPipeline          graphicsPipeline = VK_NULL_HANDLE;
 
 public:
-    TextureMapping()
+    Sample()
     {
         // Setting sample requirements
         base_title = "Texture Mapping";
@@ -105,7 +106,7 @@ public:
         destroyTexture();
     }
 
-    ~TextureMapping()
+    ~Sample()
     {
     }
 
@@ -160,7 +161,7 @@ public:
         // and use an staging buffer to copy the texture data to image memory
 
         // We use the Khronos texture format (https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/)
-        std::string filePath = EXAMPLE_ASSETS_PATH(TextureMapping)"/textures/texture_mipmaps_numbers.ktx";
+        std::string filePath = ASSETS_DATA_PATH + "/textures/texture_mipmaps_numbers.ktx";
         // Texture data contains 4 channels (RGBA) with unnormalized 8-bit values, this is the most commonly supported format
         VkFormat textureFormat = VK_FORMAT_R8G8B8A8_UNORM;
         
@@ -223,7 +224,7 @@ public:
         imageCreateInfo.arrayLayers = 1;
         imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;;
+        imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         
@@ -451,10 +452,9 @@ public:
         }
 
         // Write descriptor
-        VkDescriptorImageInfo descriptorImageInfo{};
-        descriptorImageInfo.sampler = texture.sampler;
-        descriptorImageInfo.imageView = texture.imageView;
-        descriptorImageInfo.imageLayout = texture.imageLayout;
+        texture.descriptor.sampler = texture.sampler;
+        texture.descriptor.imageView = texture.imageView;
+        texture.descriptor.imageLayout = texture.imageLayout;
 
         VkWriteDescriptorSet writeDescriptorSet{};
         writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -463,15 +463,15 @@ public:
         writeDescriptorSet.dstArrayElement = 0;
         writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writeDescriptorSet.descriptorCount = 1;
-        writeDescriptorSet.pImageInfo = &descriptorImageInfo;
+        writeDescriptorSet.pImageInfo = &texture.descriptor;
 
         vkUpdateDescriptorSets(base_vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
     }
 
     void createGraphicsPipeline()
     {
-        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(TextureMapping)"/shaders/vertshader.vert.spv");
-        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(TextureMapping)"/shaders/fragshader.frag.spv");
+        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/vertshader.vert.spv");
+        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/fragshader.frag.spv");
 
         std::vector<VkPipelineShaderStageCreateInfo> shaderStagesCreateInfos = {
             vulkanInitializers::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule),
@@ -650,12 +650,7 @@ public:
     {
         base_camera.updateAspectRatio((float)base_windowWidth / (float)base_windowHeight);
         base_camera.update((float)base_frameTime / 1000.0f);
-
-        glm::mat4 transform = glm::mat4(1.0f);
-
-        // translate rotate scale
-        transform = glm::mat4(1.0f);
-        pushConstantData.MVPmatrix = base_camera.matrices.perspective * base_camera.matrices.view * transform;
+        pushConstantData.MVPmatrix = base_camera.matrices.perspective * base_camera.matrices.view;
     }
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
@@ -718,4 +713,4 @@ public:
     }
 };
 
-EXAMPLE_MAIN(TextureMapping)
+EXAMPLE_MAIN(Sample)

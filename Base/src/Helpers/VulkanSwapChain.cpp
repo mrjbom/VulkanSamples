@@ -156,6 +156,7 @@ bool VulkanSwapChain::setPrefferedSwapChainFormat(VkSurfaceFormatKHR preferredFo
         }
     }
     // preferredFormat is not supported
+    std::cerr << "Warning: Preffered surface format not supported\n";
     this->surfaceFormat = surfaceSupportDetails.formats[0];
     return false;
 }

@@ -1,11 +1,12 @@
 ﻿#include "../../Base/src/BaseSample.h"
-#include "vk_mem_alloc.h"
 
 /*
  *    Using specialization constants to set the constants in the shader during the creation of the pipelines
  */
 
-class SpecializationConstants : public BaseSample
+std::string EXAMPLE_NAME_STR = std::string("SpecializationConstants");
+
+class Sample : public BaseSample
 {
     // Input vertexes
     struct Vertex
@@ -46,7 +47,7 @@ class SpecializationConstants : public BaseSample
     VkPipelineLayout    pipelineLayout = VK_NULL_HANDLE;
 
 public:
-    SpecializationConstants()
+    Sample()
     {
         // Setting sample requirements
         base_title = "Specialization Constants";
@@ -75,7 +76,7 @@ public:
         vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
     }
 
-    ~SpecializationConstants()
+    ~Sample()
     {
     }
 
@@ -154,8 +155,9 @@ public:
 
     void createGraphicsPipelines()
     {
-        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(SpecializationConstants)"/shaders/vertshader.vert.spv");
-        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, EXAMPLE_ASSETS_PATH(SpecializationConstants)"/shaders/fragshader.frag.spv");
+        vertShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/vertshader.vert.spv");
+        fragShaderModule = vulkanTools::loadShader(base_vulkanDevice->logicalDevice, ASSETS_DATA_SHADERS_PATH + EXAMPLE_NAME_STR + "/fragshader.frag.spv");
+
         // Cyan triangle
         ColorsSpecializationData cyanSpecializationData{};
         cyanSpecializationData.vertexColorR = 0.0f;
@@ -451,4 +453,4 @@ public:
     }
 };
 
-EXAMPLE_MAIN(SpecializationConstants)
+EXAMPLE_MAIN(Sample)
