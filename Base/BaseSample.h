@@ -11,15 +11,18 @@
 #pragma warning(pop)
 #include <Windows.h>
 #include "ErrorInfo/ErrorInfo.h"
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_LEFT_HANDED
+#include "Helpers/Camera.hpp"
 #include "Helpers/VulkanDevice.h"
 #include "Helpers/VulkanSwapChain.h"
 #include "Helpers/VulkanInitializers.hpp"
 #include "Helpers/VulkanTools.h"
 #include "Helpers/VulkanTexture.h"
-#include "Helpers/Camera.hpp"
+#include "Helpers/VulkanglTFModel.h"
 #include "Helpers/ImGuiUI.h"
 #include "Helpers/UIOverlay.hpp"
-#include "Helpers/VulkanglTFModel.h"
 
 const std::string ASSETS_DATA_PATH = "../../data/";
 const std::string ASSETS_DATA_SHADERS_PATH = "../../data/shaders/";
@@ -272,5 +275,6 @@ int main(int argc, char* argv[])                                            \
         std::cout << errInfoStr;                                            \
         return EXIT_FAILURE;                                                \
     }                                                                       \
+    _CrtDumpMemoryLeaks();                                                  \
     return EXIT_SUCCESS;                                                    \
 }

@@ -1,5 +1,11 @@
 #pragma warning(push, 0)
 #define VMA_IMPLEMENTATION
+/*
+#define VMA_DEBUG_LOG(format, ...) do { \
+       printf(format, __VA_ARGS__); \
+       printf("\n"); \
+   } while(false)
+*/
 #include "BaseSample.h"
 #pragma warning(pop)
 #include "ErrorInfo/ValidationLayers.h"
@@ -114,8 +120,8 @@ static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
 void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
     BaseSample* base = reinterpret_cast<BaseSample*>(glfwGetWindowUserPointer(window));
-    float translateZValue = (float)yoffset * base->base_mouseScrollSensitivity;
-    base->base_camera.translate(glm::vec3(0.0f, 0.0f, translateZValue));
+    float translateDistance = (float)yoffset * base->base_mouseScrollSensitivity;
+    base->base_camera.translateDistance(-translateDistance);
 }
 
 void BaseSample::initVulkan()

@@ -1,4 +1,4 @@
-#include "../../Base/src/BaseSample.h"
+#include "../../Base/BaseSample.h"
 
 std::string EXAMPLE_NAME_STR = std::string("TriangleSample");
 
@@ -11,9 +11,9 @@ class Sample : public BaseSample
     };
 
     std::vector<Vertex> vertexes = {
-        { glm::vec3(0.0, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0) },
-        { glm::vec3(0.5, 0.5, 0.0), glm::vec3(0.0, 1.0, 0.0) },
-        { glm::vec3(-0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0) }
+        { glm::vec3(0.0, 0.5, 0.0), glm::vec3(1.0, 0.0, 0.0) },
+        { glm::vec3(0.5, -0.5, 0.0), glm::vec3(0.0, 1.0, 0.0) },
+        { glm::vec3(-0.5, -0.5, 0.0), glm::vec3(0.0, 0.0, 1.0) }
     };
 
     VkBuffer vertexesBuffer = VK_NULL_HANDLE;
@@ -318,9 +318,9 @@ public:
 
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
+        viewport.y = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);;
         viewport.width = static_cast<float>(base_vulkanSwapChain->surfaceExtent.width);
-        viewport.height = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
+        viewport.height = -static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);

@@ -27,23 +27,23 @@ void VulkanBuffer::createBuffer(size_t bufferSize, VkBufferUsageFlags usageFlags
         throw MakeErrorInfo("Failed to create buffer!");
     }
 
-    // Fill buffer pData data
-    if (pData == nullptr) {
-        return;
+    // Fill buffer by pData data
+    if (pData) {
+        void* pMappedBuffer = nullptr;
+        if (vmaMapMemory(vmaAllocator, vmaAllocation, &pMappedBuffer) != VK_SUCCESS) {
+            throw MakeErrorInfo("Failed to map VMA memory!");
+        }
+        memcpy(pMappedBuffer, pData, pDataSize);
+        vmaUnmapMemory(vmaAllocator, vmaAllocation);
     }
-
-    void* pMappedBuffer = nullptr;
-    if (vmaMapMemory(vmaAllocator, vmaAllocation, &pMappedBuffer) != VK_SUCCESS) {
-        throw MakeErrorInfo("Failed to map VMA memory!");
-    }
-    memcpy(pMappedBuffer, pData, pDataSize);
-    vmaUnmapMemory(vmaAllocator, vmaAllocation);
 
     // It's non coherent memory
     // Need flush
     if (!(requiredMemoryFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
         vmaFlushAllocation(vmaAllocator, vmaAllocation, 0, pDataSize);
     }
+
+    this->setupDescriptor();
 }
 
 void VulkanBuffer::map(void** pMappedBuffer)
@@ -61,6 +61,13 @@ void VulkanBuffer::unmap()
 void VulkanBuffer::flush(VkDeviceSize offset, VkDeviceSize size)
 {
     vmaFlushAllocation(vmaAllocator, vmaAllocation, offset, size);
+}
+
+void VulkanBuffer::setupDescriptor(VkDeviceSize size, VkDeviceSize offset)
+{
+    descriptor.offset = offset;
+    descriptor.buffer = this->buffer;
+    descriptor.range = size;
 }
 
 void VulkanBuffer::destroy()

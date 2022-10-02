@@ -1,4 +1,4 @@
-﻿#include "../../Base/src/BaseSample.h"
+﻿#include "../../Base/BaseSample.h"
 
 std::string EXAMPLE_NAME_STR = std::string("TextureArray");
 
@@ -34,10 +34,10 @@ class Sample : public BaseSample
     PushConstantData pushConstantData{};
 
     std::vector<Vertex> vertexes = {
-        { glm::vec3(-0.5, -0.5, 0.0), glm::vec2(0.0, 0.0) },
-        { glm::vec3(0.5, -0.5, 0.0), glm::vec2(1.0, 0.0) },
-        { glm::vec3(0.5, 0.5, 0.0), glm::vec2(1.0, 1.0) },
-        { glm::vec3(-0.5, 0.5, 0.0), glm::vec2(0.0, 1.0) }
+        { glm::vec3(-0.5, 0.5, 0.0), glm::vec2(0.0, 0.0) },
+        { glm::vec3(0.5, 0.5, 0.0), glm::vec2(1.0, 0.0) },
+        { glm::vec3(0.5, -0.5, 0.0), glm::vec2(1.0, 1.0) },
+        { glm::vec3(-0.5, -0.5, 0.0), glm::vec2(0.0, 1.0) }
     };
 
     std::vector<uint16_t> indexes = {
@@ -141,7 +141,7 @@ public:
         // Setting up camera
         base_camera.type = Camera::CameraType::firstperson;
         base_camera.setPerspective(45.0f, (float)base_windowWidth / (float)base_windowHeight, 0.1f, 100.0f);
-        base_camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.0f));
+        base_camera.setPosition(glm::vec3(0.0f, 0.0f, -2.0f));
     }
 
     void loadTexture()
@@ -517,9 +517,9 @@ public:
         // Viewport
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = (float)base_vulkanSwapChain->surfaceExtent.width;
-        viewport.height = (float)base_vulkanSwapChain->surfaceExtent.height;
+        viewport.y = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);;
+        viewport.width = static_cast<float>(base_vulkanSwapChain->surfaceExtent.width);
+        viewport.height = -static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         // Scissor
@@ -676,7 +676,12 @@ public:
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
         VkViewport viewport{};
-        viewport = vulkanInitializers::viewport((float)base_vulkanSwapChain->surfaceExtent.width, (float)base_vulkanSwapChain->surfaceExtent.height, 0.0f, 1.0f);
+        viewport.x = 0.0f;
+        viewport.y = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);;
+        viewport.width = static_cast<float>(base_vulkanSwapChain->surfaceExtent.width);
+        viewport.height = -static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
         VkRect2D scissor{};

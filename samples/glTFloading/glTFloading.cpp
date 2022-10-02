@@ -1,4 +1,4 @@
-﻿#include "../../Base/src/BaseSample.h"
+﻿#include "../../Base/BaseSample.h"
 
 std::string EXAMPLE_NAME_STR = std::string("glTFloading");
 
@@ -7,12 +7,12 @@ class Sample : public BaseSample
     vulkanglTF::Model*      model = nullptr;
 
     struct ShaderData {
-        VulkanBuffer* vulkanBuffer = nullptr;
-        struct Values {
+        VulkanBuffer* uboVulkanBuffer = nullptr;
+        struct UboValues {
             glm::mat4 projection = glm::mat4(1.0f);
             glm::mat4 view = glm::mat4(1.0f);
-            glm::mat4 model_transform = glm::mat4(1.0f);
-        } values;
+            glm::mat4 model = glm::mat4(1.0f);
+        } uboValues;
     };
 
     // One per frame
@@ -23,13 +23,9 @@ class Sample : public BaseSample
     VkPipelineLayout        pipelineLayout = VK_NULL_HANDLE;
     VkPipeline              graphicsPipeline = VK_NULL_HANDLE;
 
-    struct DescriptorSetLayouts {
-        VkDescriptorSetLayout matrices;
-        VkDescriptorSetLayout textures;
-    } descriptorSetLayouts;
+    std::vector<VkDescriptorSet> descriptorSetsMatrices;
+    VkDescriptorSetLayout   descriptorSetLayoutMatrices = VK_NULL_HANDLE;
     VkDescriptorPool        descriptorPool = VK_NULL_HANDLE;
-    // One per frame
-    std::vector<VkDescriptorSet> buffersDescriptorSets;
 public:
     Sample()
     {
@@ -42,8 +38,10 @@ public:
         initCamera();
         loadAssets();
         prepareUniformBuffers();
-        setupDescriptors();
+        setupDescriptorSetLayout();
         createGraphicsPipeline();
+        setupDescriptorPool();
+        setupDescriptorSet();
     }
 
     void cleanup()
@@ -60,13 +58,12 @@ public:
         vkDestroyDescriptorPool(base_vulkanDevice->logicalDevice, descriptorPool, nullptr);
 
         // Descriptor set layouts
-        vkDestroyDescriptorSetLayout(base_vulkanDevice->logicalDevice, descriptorSetLayouts.matrices, nullptr);
-        vkDestroyDescriptorSetLayout(base_vulkanDevice->logicalDevice, descriptorSetLayouts.textures, nullptr);
+        vkDestroyDescriptorSetLayout(base_vulkanDevice->logicalDevice, descriptorSetLayoutMatrices, nullptr);
 
         // Uniform buffer
         for (uint32_t i = 0; i < BASE_MAX_FRAMES_IN_FLIGHT; ++i) {
-            shaderData[i].vulkanBuffer->destroy();
-            delete shaderData[i].vulkanBuffer;
+            shaderData[i].uboVulkanBuffer->destroy();
+            delete shaderData[i].uboVulkanBuffer;
         }
 
         // Model
@@ -118,24 +115,27 @@ public:
     {
         // Setting up camera
         base_camera.type = Camera::CameraType::lookat;
-        base_camera.flipY = true;
+        //base_camera.type = Camera::CameraType::firstperson;
         base_camera.setPerspective(60.0f, (float)base_windowWidth / (float)base_windowHeight, 0.1f, 100.0f);
-        base_camera.setTranslation(glm::vec3(0.0f, -0.1f, -1.0f));
-        base_camera.setRotation(glm::vec3(0.0f, -135.0f, 0.0f));
+        //base_camera.setPosition(glm::vec3(0.0f, 0.0f, -1.0));
+        base_camera.setDistance(1.0f);
     }
 
     void loadAssets()
     {
         model = new vulkanglTF::Model(base_vulkanDevice, base_graphicsQueue, base_commandPoolGraphics, base_vmaAllocator);
-        model->loadFromFile(ASSETS_DATA_PATH + "/models/FlightHelmet/glTF/FlightHelmet.gltf", base_graphicsQueue, base_commandPoolGraphics);
+        const uint32_t glTFLoadingFlags = vulkanglTF::PreTransformVertices | vulkanglTF::FileLoadingFlags::PreMultiplyVertexColors | vulkanglTF::FileLoadingFlags::FlipZ;
+        model->loadFromFile(ASSETS_DATA_PATH + "/models/FlightHelmet/glTF/FlightHelmet.gltf", glTFLoadingFlags, base_graphicsQueue, base_commandPoolGraphics);
+        //"/models/BoomBoxWithAxesBlender/BoomBoxWithAxesBlender.gltf" - Tested on left handed coordinate system(with fliping Z load flag)
+        //"/models/FlightHelmet/glTF/FlightHelmet.gltf"
     }
 
     void prepareUniformBuffers()
     {
         shaderData.resize(BASE_MAX_FRAMES_IN_FLIGHT);
         for (uint32_t i = 0; i < BASE_MAX_FRAMES_IN_FLIGHT; ++i) {
-            shaderData[i].vulkanBuffer = new VulkanBuffer(base_vulkanDevice, base_vmaAllocator);
-            shaderData[i].vulkanBuffer->createBuffer(
+            shaderData[i].uboVulkanBuffer = new VulkanBuffer(base_vulkanDevice, base_vmaAllocator);
+            shaderData[i].uboVulkanBuffer->createBuffer(
                 sizeof(ShaderData),
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -144,102 +144,23 @@ public:
         }
     }
 
-    void setupDescriptors()
+    void setupDescriptorSetLayout()
     {
-        // Create descriptor pool
-        std::vector<VkDescriptorPoolSize> poolSizes = {
-            vulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, BASE_MAX_FRAMES_IN_FLIGHT),
-            // One combined image sampler per model image/texture
-            vulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, model->images.size())
+        std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
+        {
+            // Binding 0 : Vertex shader uniform buffer
+            vulkanInitializers::descriptorSetLayoutBinding(
+                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                VK_SHADER_STAGE_VERTEX_BIT,
+                0)
         };
-        uint32_t maxSetsCount = model->images.size() + BASE_MAX_FRAMES_IN_FLIGHT;
-        VkDescriptorPoolCreateInfo descriptorPoolInfo = vulkanInitializers::descriptorPoolCreateInfo(poolSizes, maxSetsCount);
-        if (vkCreateDescriptorPool(base_vulkanDevice->logicalDevice, &descriptorPoolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to create descriptor pool!");
-        }
 
-        // Create descriptor set layouts
-        // Descriptor set layout for passing matrices using Uniform Buffer
-        VkDescriptorSetLayoutBinding setLayoutBinding{};
-        setLayoutBinding.binding = 0;
-        setLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        setLayoutBinding.descriptorCount = 1;
-        setLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
-        descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        descriptorSetLayoutCreateInfo.bindingCount = 1;
-        descriptorSetLayoutCreateInfo.pBindings = &setLayoutBinding;
-        if (vkCreateDescriptorSetLayout(base_vulkanDevice->logicalDevice, &descriptorSetLayoutCreateInfo, nullptr, &descriptorSetLayouts.matrices) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to create descriptor set layout")
-        }
+        VkDescriptorSetLayoutCreateInfo descriptorLayout =
+            vulkanInitializers::descriptorSetLayoutCreateInfo(
+                setLayoutBindings.data(),
+                setLayoutBindings.size());
 
-        // Descriptor set layout for passing textures
-        setLayoutBinding.binding = 0;
-        setLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        setLayoutBinding.descriptorCount = 1;
-        setLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        
-        descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        descriptorSetLayoutCreateInfo.bindingCount = 1;
-        descriptorSetLayoutCreateInfo.pBindings = &setLayoutBinding;
-        if (vkCreateDescriptorSetLayout(base_vulkanDevice->logicalDevice, &descriptorSetLayoutCreateInfo, nullptr, &descriptorSetLayouts.textures) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to create descriptor set layout")
-        }
-
-        // Allocate and write descriptor sets
-        // Allocate multiple descriptor sets for matrices buffer(one per frame)
-        VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{};
-        descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        descriptorSetAllocateInfo.descriptorPool = descriptorPool;
-        descriptorSetAllocateInfo.descriptorSetCount = BASE_MAX_FRAMES_IN_FLIGHT;
-        std::vector<VkDescriptorSetLayout> descriptorSetsLayouts(BASE_MAX_FRAMES_IN_FLIGHT, descriptorSetLayouts.matrices);
-        descriptorSetAllocateInfo.pSetLayouts = descriptorSetsLayouts.data();
-        buffersDescriptorSets.resize(BASE_MAX_FRAMES_IN_FLIGHT);
-        if (vkAllocateDescriptorSets(base_vulkanDevice->logicalDevice, &descriptorSetAllocateInfo, buffersDescriptorSets.data()) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to allocate descriptor sets!");
-        }
-        // Write buffers into descriptors
-        for (size_t i = 0; i < BASE_MAX_FRAMES_IN_FLIGHT; i++) {
-            VkDescriptorBufferInfo bufferDescriptorInfo{};
-            bufferDescriptorInfo.buffer = shaderData[i].vulkanBuffer->buffer;
-            bufferDescriptorInfo.offset = 0;
-            bufferDescriptorInfo.range = sizeof(ShaderData::Values);
-
-            VkWriteDescriptorSet writeDescriptorSet{};
-            writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writeDescriptorSet.dstSet = buffersDescriptorSets[i];
-            writeDescriptorSet.dstBinding = 0;
-            writeDescriptorSet.dstArrayElement = 0;
-            writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            writeDescriptorSet.descriptorCount = 1;
-            writeDescriptorSet.pBufferInfo = &bufferDescriptorInfo;
-
-            vkUpdateDescriptorSets(base_vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
-        }
-
-        // Allocate descriptor set for images(textures)
-        for (auto& image : model->images) {
-            // Allocate one descriptor set per image(texture)
-            VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{};
-            descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            descriptorSetAllocateInfo.descriptorPool = descriptorPool;
-            descriptorSetAllocateInfo.descriptorSetCount = 1;
-            descriptorSetAllocateInfo.pSetLayouts = &descriptorSetLayouts.textures;
-            if (vkAllocateDescriptorSets(base_vulkanDevice->logicalDevice, &descriptorSetAllocateInfo, &image.descriptorSet) != VK_SUCCESS) {
-                throw MakeErrorInfo("Failed to allocate descriptor sets!");
-            }
-            // Write image(texture) into descriptor 
-            VkWriteDescriptorSet writeDescriptorSet{};
-            writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writeDescriptorSet.dstSet = image.descriptorSet;
-            writeDescriptorSet.dstBinding = 0;
-            writeDescriptorSet.dstArrayElement = 0;
-            writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            writeDescriptorSet.descriptorCount = 1;
-            writeDescriptorSet.pImageInfo = &image.texture.descriptor;
-
-            vkUpdateDescriptorSets(base_vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
-        }
+        VK_CHECK_RESULT(vkCreateDescriptorSetLayout(base_vulkanDevice->logicalDevice, &descriptorLayout, nullptr, &descriptorSetLayoutMatrices));
     }
 
     void createGraphicsPipeline()
@@ -279,20 +200,11 @@ public:
             vulkanglTF::VertexComponent::Color
         });
 
-        // Pipeline layout
-        VkPushConstantRange vertexMatrixPushConstantRange{};
-        vertexMatrixPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        vertexMatrixPushConstantRange.offset = 0;
-        vertexMatrixPushConstantRange.size = sizeof(glm::mat4);
-
-        std::vector<VkDescriptorSetLayout> descriptorSetLayoutsList = { descriptorSetLayouts.matrices, descriptorSetLayouts.textures };
-        std::vector<VkPushConstantRange> pushConstantsRanges{ vertexMatrixPushConstantRange };
+        std::vector<VkDescriptorSetLayout> descriptorSetLayoutsList = { descriptorSetLayoutMatrices, vulkanglTF::descriptorSetLayoutImage };
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutsList.size();
         pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutsList.data();
-        pipelineLayoutInfo.pushConstantRangeCount = pushConstantsRanges.size();
-        pipelineLayoutInfo.pPushConstantRanges = pushConstantsRanges.data();
 
         if (vkCreatePipelineLayout(base_vulkanDevice->logicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to create pipeline layout!");
@@ -320,23 +232,69 @@ public:
         }
     }
 
+    void setupDescriptorPool()
+    {
+        std::vector<VkDescriptorPoolSize> poolSizes =
+        {
+            // One descriptor per frame
+            vulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, BASE_MAX_FRAMES_IN_FLIGHT)
+        };
+
+        // One descriptor set per frame
+        VkDescriptorPoolCreateInfo descriptorPoolInfo =
+            vulkanInitializers::descriptorPoolCreateInfo(
+                poolSizes.size(),
+                poolSizes.data(),
+                BASE_MAX_FRAMES_IN_FLIGHT
+            );
+
+        VK_CHECK_RESULT(vkCreateDescriptorPool(base_vulkanDevice->logicalDevice, &descriptorPoolInfo, nullptr, &descriptorPool));
+    }
+
+    void setupDescriptorSet()
+    {
+        // Allocate BASE_MAX_FRAMES_IN_FLIGHT descriptors sets
+        // One descriptor set per frame
+        std::vector<VkDescriptorSetLayout> setsLayouts(BASE_MAX_FRAMES_IN_FLIGHT, descriptorSetLayoutMatrices);
+        VkDescriptorSetAllocateInfo allocInfo =
+            vulkanInitializers::descriptorSetAllocateInfo(
+                descriptorPool,
+                setsLayouts.data(),
+                BASE_MAX_FRAMES_IN_FLIGHT);
+
+        descriptorSetsMatrices.resize(BASE_MAX_FRAMES_IN_FLIGHT);
+        VK_CHECK_RESULT(vkAllocateDescriptorSets(base_vulkanDevice->logicalDevice, &allocInfo, descriptorSetsMatrices.data()));
+
+        for (uint32_t i = 0; i < BASE_MAX_FRAMES_IN_FLIGHT; ++i) {
+            VkWriteDescriptorSet writeDescriptorSet =
+            {
+                // Binding 0 : Vertex shader uniform buffer
+                vulkanInitializers::writeDescriptorSet(
+                    descriptorSetsMatrices[i],
+                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    0,
+                    &shaderData[i].uboVulkanBuffer->descriptor,
+                    1)
+            };
+
+            vkUpdateDescriptorSets(base_vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
+        }
+    }
+
     void updateUniformBuffers(uint32_t currentFrame)
     {
         base_camera.updateAspectRatio((float)base_windowWidth / (float)base_windowHeight);
         base_camera.update((float)base_frameTime / 1000.0f);
 
         glm::mat4 model_transform = glm::mat4(1.0f);
-        shaderData[currentFrame].values.projection = base_camera.matrices.perspective;
-        shaderData[currentFrame].values.view = base_camera.matrices.view;
-        shaderData[currentFrame].values.model_transform = model_transform;
-
-        //glm::vec3 cameraPos = base_camera.getPosition();
-        //std::cout << cameraPos.x << " " << cameraPos.y << " " << cameraPos.z << "\n";
+        shaderData[currentFrame].uboValues.projection = base_camera.matrices.perspective;
+        shaderData[currentFrame].uboValues.view = base_camera.matrices.view;
+        shaderData[currentFrame].uboValues.model = model_transform;
 
         void* pMappedBuffer = nullptr;
-        shaderData[currentFrame].vulkanBuffer->map(&pMappedBuffer);
-        memcpy(pMappedBuffer, &shaderData[currentFrame].values, sizeof(ShaderData::Values));
-        shaderData[currentFrame].vulkanBuffer->unmap();
+        shaderData[currentFrame].uboVulkanBuffer->map(&pMappedBuffer);
+        memcpy(pMappedBuffer, &shaderData[currentFrame].uboValues, sizeof(ShaderData::UboValues));
+        shaderData[currentFrame].uboVulkanBuffer->unmap();
     }
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
@@ -366,9 +324,9 @@ public:
 
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
+        viewport.y = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);;
         viewport.width = static_cast<float>(base_vulkanSwapChain->surfaceExtent.width);
-        viewport.height = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
+        viewport.height = -static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
@@ -378,9 +336,9 @@ public:
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
         // Bind scene matrices descriptor to set 0
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &buffersDescriptorSets[base_currentFrameIndex], 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSetsMatrices[base_currentFrameIndex], 0, nullptr);
         model->bindBuffers(commandBuffer);
-        model->draw(commandBuffer, pipelineLayout);
+        model->draw(commandBuffer, vulkanglTF::RenderFlags::BindImages, pipelineLayout, 1);
 
         vkCmdEndRenderPass(commandBuffer);
 

@@ -1,4 +1,4 @@
-﻿#include "../../Base/src/BaseSample.h"
+﻿#include "../../Base/BaseSample.h"
 
 std::string EXAMPLE_NAME_STR = std::string("DynamicDescriptorSets");
 
@@ -31,9 +31,9 @@ class Sample : public BaseSample
     VkDescriptorSetLayout           UBOmatrixesDescriptorSetLayout = VK_NULL_HANDLE;
 
     std::vector<Vertex> vertexes = {
-        { glm::vec3(0.0, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0) },
-        { glm::vec3(0.5, 0.5, 0.0), glm::vec3(0.0, 1.0, 0.0) },
-        { glm::vec3(-0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0) }
+        { glm::vec3(0.0, 0.5, 0.0), glm::vec3(1.0, 0.0, 0.0) },
+        { glm::vec3(0.5, -0.5, 0.0), glm::vec3(0.0, 1.0, 0.0) },
+        { glm::vec3(-0.5, -0.5, 0.0), glm::vec3(0.0, 0.0, 1.0) }
     };
 
     VkShaderModule      vertShaderModule = VK_NULL_HANDLE;
@@ -126,8 +126,8 @@ public:
     {
         // Setting up camera
         base_camera.type = Camera::CameraType::firstperson;
-        base_camera.setPerspective(45.0f, (float)base_windowWidth / (float)base_windowHeight, 0.1f, 100.0f);
-        base_camera.setTranslation(glm::vec3(0.0f, 0.0f, -6.0f));
+        base_camera.setPerspective(60.0f, (float)base_windowWidth / (float)base_windowHeight, 0.1f, 100.0f);
+        base_camera.setPosition(glm::vec3(0.0f, 0.0f, -3.0f));
     }
 
     // Calculate required alignment based on minimum device offset alignment
@@ -320,9 +320,9 @@ public:
         // Viewport
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = (float)base_vulkanSwapChain->surfaceExtent.width;
-        viewport.height = (float)base_vulkanSwapChain->surfaceExtent.height;
+        viewport.y = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);;
+        viewport.width = static_cast<float>(base_vulkanSwapChain->surfaceExtent.width);
+        viewport.height = -static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         // Scissor
@@ -445,24 +445,21 @@ public:
             matrixes[i].view = base_camera.matrices.view;
         }
         // translate rotate scale
-        rotation += 45.0f * (float)base_frameTime / 1000.f;
+        rotation += 30.0f * (float)base_frameTime / 1000.f;
 
         glm::mat4 transform = glm::mat4(1.0f);
-        transform = glm::translate(transform, glm::vec3(-1.5f, 0.0f, -1.5f));
+        transform = glm::translate(transform, glm::vec3(-0.5f, 0.0f, 0.5f));
         transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
-        transform = glm::scale(transform, glm::vec3(2.0f, 2.0f, 1.0f));
         matrixes[0].model = transform;
 
         transform = glm::mat4(1.0f);
         transform = glm::translate(transform, glm::vec3(0.0f, 0.0f, 0.0f));
         transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
-        transform = glm::scale(transform, glm::vec3(2.0f, 2.0f, 1.0f));
         matrixes[1].model = transform;
         
         transform = glm::mat4(1.0f);
-        transform = glm::translate(transform, glm::vec3(1.5f, 0.0f, 1.5f));
+        transform = glm::translate(transform, glm::vec3(0.5f, 0.0f, -0.5f));
         transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
-        transform = glm::scale(transform, glm::vec3(2.0f, 2.0f, 1.0f));
         matrixes[2].model = transform;
 
         void* mappedBufferData = nullptr;
@@ -504,9 +501,9 @@ public:
 
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
+        viewport.y = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);;
         viewport.width = static_cast<float>(base_vulkanSwapChain->surfaceExtent.width);
-        viewport.height = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
+        viewport.height = -static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);

@@ -1,4 +1,4 @@
-﻿#include "../../Base/src/BaseSample.h"
+﻿#include "../../Base/BaseSample.h"
 
 /*
  *    Using specialization constants to set the constants in the shader during the creation of the pipelines
@@ -37,9 +37,9 @@ class Sample : public BaseSample
 
 
     std::vector<Vertex> vertexes = {
-        { glm::vec3(0.0, -0.5, 0.0) },
-        { glm::vec3(0.5, 0.5, 0.0) },
-        { glm::vec3(-0.5, 0.5, 0.0) }
+        { glm::vec3(0.0, 0.5, 0.0) },
+        { glm::vec3(0.5, -0.5, 0.0) },
+        { glm::vec3(-0.5, -0.5, 0.0) }
     };
 
     VkShaderModule      vertShaderModule = VK_NULL_HANDLE;
@@ -122,7 +122,7 @@ public:
         // Setting up camera
         base_camera.type = Camera::CameraType::firstperson;
         base_camera.setPerspective(45.0f, ((float)base_windowWidth / 2.0f) / (float)base_windowHeight, 0.1f, 100.0f);
-        base_camera.setTranslation(glm::vec3(0.0f, 0.0f, -6.0f));
+        base_camera.setPosition(glm::vec3(0.0f, 0.0f, -6.0f));
     }
 
     void createBuffers()
@@ -239,9 +239,9 @@ public:
         // Viewport
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = (float)base_vulkanSwapChain->surfaceExtent.width;
-        viewport.height = (float)base_vulkanSwapChain->surfaceExtent.height;
+        viewport.y = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);;
+        viewport.width = static_cast<float>(base_vulkanSwapChain->surfaceExtent.width);
+        viewport.height = -static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         // Scissor
@@ -421,9 +421,9 @@ public:
 
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = float(base_vulkanSwapChain->surfaceExtent.width) / 2;
-        viewport.height = float(base_vulkanSwapChain->surfaceExtent.height);
+        viewport.y = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
+        viewport.width = static_cast<float>(base_vulkanSwapChain->surfaceExtent.width) / 2.0f;
+        viewport.height = -static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
@@ -450,6 +450,13 @@ public:
         if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to record command buffer!");
         }
+    }
+
+    void drawUI()
+    {
+        UIOverlay::windowBegin(base_title.c_str(), nullptr, { 0, 0 }, { 300, 100 });
+        UIOverlay::printFPS((float)base_frameTime, 500);
+        UIOverlay::windowEnd();
     }
 };
 

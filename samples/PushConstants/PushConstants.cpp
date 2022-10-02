@@ -1,4 +1,4 @@
-﻿#include "../../Base/src/BaseSample.h"
+﻿#include "../../Base/BaseSample.h"
 
 std::string EXAMPLE_NAME_STR = std::string("PushConstants");
 
@@ -30,9 +30,9 @@ class Sample : public BaseSample
     ColorsPushConstant colorsPushConstants[NUMBER_OF_TRIANGLES];
 
     std::vector<Vertex> vertexes = {
-        { glm::vec3(0.0, -0.5, 0.0) },
-        { glm::vec3(0.5, 0.5, 0.0) },
-        { glm::vec3(-0.5, 0.5, 0.0) }
+        { glm::vec3(0.0, 0.5, 0.0) },
+        { glm::vec3(0.5, -0.5, 0.0) },
+        { glm::vec3(-0.5, -0.5, 0.0) }
     };
 
     VkShaderModule      vertShaderModule = VK_NULL_HANDLE;
@@ -82,10 +82,6 @@ public:
         vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
     }
 
-    ~Sample()
-    {
-    }
-
     void draw()
     {
         // Acquire image
@@ -128,7 +124,7 @@ public:
         // Setting up camera
         base_camera.type = Camera::CameraType::firstperson;
         base_camera.setPerspective(45.0f, (float)base_windowWidth / (float)base_windowHeight, 0.1f, 100.0f);
-        base_camera.setTranslation(glm::vec3(0.0f, 0.0f, -6.0f));
+        base_camera.setPosition(glm::vec3(0.0f, 0.0f, -3.0f));
     }
 
     void createBuffers()
@@ -211,9 +207,9 @@ public:
         // Viewport
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = (float)base_vulkanSwapChain->surfaceExtent.width;
-        viewport.height = (float)base_vulkanSwapChain->surfaceExtent.height;
+        viewport.y = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);;
+        viewport.width = static_cast<float>(base_vulkanSwapChain->surfaceExtent.width);
+        viewport.height = -static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         // Scissor
@@ -348,24 +344,24 @@ public:
         base_camera.update((float)base_frameTime / 1000.0f);
 
         // translate rotate scale
-        rotation += 45.0f * (float)base_frameTime / 1000.f;
+        rotation += 30.0f * (float)base_frameTime / 1000.f;
+
+        //base_camera.matrices.perspective = glm::mat4(1.0f);
+        //base_camera.matrices.view = glm::mat4(1.0f);
 
         glm::mat4 transform = glm::mat4(1.0f);
-        transform = glm::translate(transform, glm::vec3(-1.5f, 0.0f, -1.5f));
+        transform = glm::translate(transform, glm::vec3(-0.5f, 0.0f, -0.5f));
         transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
-        transform = glm::scale(transform, glm::vec3(2.0f, 2.0f, 1.0f));
         matrixPushConstants[0].MVPmatrix = base_camera.matrices.perspective * base_camera.matrices.view * transform;
 
         transform = glm::mat4(1.0f);
         transform = glm::translate(transform, glm::vec3(0.0f, 0.0f, 0.0f));
         transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
-        transform = glm::scale(transform, glm::vec3(2.0f, 2.0f, 1.0f));
         matrixPushConstants[1].MVPmatrix = base_camera.matrices.perspective * base_camera.matrices.view * transform;
 
         transform = glm::mat4(1.0f);
-        transform = glm::translate(transform, glm::vec3(1.5f, 0.0f, 1.5f));
+        transform = glm::translate(transform, glm::vec3(0.5f, 0.0f, 0.5f));
         transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
-        transform = glm::scale(transform, glm::vec3(2.0f, 2.0f, 1.0f));
         matrixPushConstants[2].MVPmatrix = base_camera.matrices.perspective * base_camera.matrices.view * transform;
     }
 
@@ -396,9 +392,9 @@ public:
 
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
+        viewport.y = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
         viewport.width = static_cast<float>(base_vulkanSwapChain->surfaceExtent.width);
-        viewport.height = static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
+        viewport.height = -static_cast<float>(base_vulkanSwapChain->surfaceExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);

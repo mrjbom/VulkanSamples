@@ -15,6 +15,7 @@ public:
     VkBuffer buffer = VK_NULL_HANDLE;
     VmaAllocation vmaAllocation{};
     VmaAllocationInfo vmaAllocationInfo{};
+    VkDescriptorBufferInfo descriptor;
 public:
     VulkanBuffer(VulkanDevice* vulkanDevice, VmaAllocator vmaAllocator);
     
@@ -43,10 +44,9 @@ public:
         size_t pDataSize = 0,
         VmaMemoryUsage vmaMemoryUsage = VMA_MEMORY_USAGE_AUTO
     );
-
     void map(void** pMappedBuffer);
     void unmap();
     void flush(VkDeviceSize offset, VkDeviceSize size);
-
+    void setupDescriptor(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
     void destroy();
 };
