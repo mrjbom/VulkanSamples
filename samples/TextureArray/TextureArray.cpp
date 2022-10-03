@@ -10,15 +10,11 @@ class Sample : public BaseSample
         glm::vec3 position;
         glm::vec2 textureCoord;
     };
-    VkBuffer                        vertexesBuffer = VK_NULL_HANDLE;
-    VmaAllocation                   vertexesBufferAllocation = 0;
-    VmaAllocationInfo               vertexesBufferAllocationInfo{};
+    VulkanBuffer                    vertexBuffer;
 
-    VkBuffer                        indexesBuffer = VK_NULL_HANDLE;
-    VmaAllocation                   indexesBufferAllocation = 0;
-    VmaAllocationInfo               indexesBufferAllocationInfo{};
+    VulkanBuffer                    indexBuffer;
 
-    VulkanTexture                   texture{};
+    VulkanTexture2D                 vulkanTexture{};
 
     VkDescriptorPool                descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSet                 descriptorSet;
@@ -67,13 +63,6 @@ public:
         createGraphicsPipeline();
     }
 
-    void destroyTexture()
-    {
-        vkDestroySampler(base_vulkanDevice->logicalDevice, texture.sampler, nullptr);
-        vkDestroyImageView(base_vulkanDevice->logicalDevice, texture.imageView, nullptr);
-        vmaDestroyImage(base_vmaAllocator, texture.image, texture.vmaAllocation);
-    }
-
     void cleanup()
     {
         vkDeviceWaitIdle(base_vulkanDevice->logicalDevice);
@@ -89,14 +78,11 @@ public:
         vkDestroyDescriptorSetLayout(base_vulkanDevice->logicalDevice, descriptorSetLayout, nullptr);
 
         // Buffers
-        vmaDestroyBuffer(base_vmaAllocator, indexesBuffer, indexesBufferAllocation);
-        vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
+        indexBuffer.destroy();
+        vertexBuffer.destroy();
 
-        destroyTexture();
-    }
-
-    ~Sample()
-    {
+        // Texture
+        vulkanTexture.destroy();
     }
 
     void draw()
@@ -146,11 +132,22 @@ public:
 
     void loadTexture()
     {
+        // We use the Khronos texture format (https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/)
+        std::string filePath = ASSETS_DATA_PATH + "/textures/3layers3mips.ktx";
+        
+        /*
+        vulkanTexture.setDeviceAndAllocator(base_vulkanDevice, base_vmaAllocator);
+        vulkanTexture.createTextureFromKTX(
+            base_graphicsQueue,
+            base_commandPoolGraphics,
+            filePath
+        );
+        */
+
+        ///*
         // We create the image in the local memory of the device(without the possibility of mapping to the host memory)
         // and use an staging buffer to copy the texture data to image memory
 
-        // We use the Khronos texture format (https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/)
-        std::string filePath = ASSETS_DATA_PATH + "/textures/3layers3mips.ktx";
         // Texture data contains 4 channels (RGBA) with unnormalized 8-bit values, this is the most commonly supported format
         VkFormat textureFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
@@ -166,63 +163,48 @@ public:
             throw MakeErrorInfo("ktx: failed to load texture!");
         }
 
+        vulkanTexture.vulkanDevice = base_vulkanDevice;
+        vulkanTexture.vmaAllocator = base_vmaAllocator;
+
         // Get texture properties 
-        texture.width = ktxTexture->baseWidth;
-        texture.height = ktxTexture->baseHeight;
-        texture.mipLevels = ktxTexture->numLevels;
-        texture.layerCount = ktxTexture->numLayers;
+        vulkanTexture.width = ktxTexture->baseWidth;
+        vulkanTexture.height = ktxTexture->baseHeight;
+        vulkanTexture.mipLevels = ktxTexture->numLevels;
+        vulkanTexture.layerCount = ktxTexture->numLayers;
         ktx_uint8_t* ktxTextureData = ktxTexture_GetData(ktxTexture);
         ktx_size_t ktxTextureSize = ktxTexture_GetDataSize(ktxTexture);
 
         // Create staging buffer
-        VkBuffer stagingBuffer = VK_NULL_HANDLE;
-        VmaAllocation stagingBufferAllocation = 0;
-        VmaAllocationInfo stagingBufferAllocationInfo{};
-
-        VkBufferCreateInfo bufferCreateInfo{};
-        bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferCreateInfo.size = ktxTextureSize;
-        // This buffer is used as a transfer source for the buffer copy
-        bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        VmaAllocationCreateInfo bufferAllocationCreateInfo{};
-        bufferAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        bufferAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        bufferAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // We must use memcpy (not random access!)
-
-        if (vmaCreateBuffer(base_vmaAllocator, &bufferCreateInfo, &bufferAllocationCreateInfo, &stagingBuffer, &stagingBufferAllocation, &stagingBufferAllocationInfo) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to create buffer!");
-        }
-
-        // Map buffer memory and copy image data
-        void* mappedBufferData = nullptr;
-        if (vmaMapMemory(base_vmaAllocator, stagingBufferAllocation, &mappedBufferData)) {
-            throw MakeErrorInfo("Failed to map buffer!");
-        }
-        memcpy(mappedBufferData, ktxTextureData, (size_t)bufferCreateInfo.size);
-        vmaUnmapMemory(base_vmaAllocator, stagingBufferAllocation);
+        VulkanBuffer stagingBuffer(base_vulkanDevice, base_vmaAllocator);
+        stagingBuffer.createBuffer(
+            ktxTextureSize,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            ktxTextureData,
+            ktxTextureSize
+        );
 
         // Creating image
         VkImageCreateInfo imageCreateInfo{};
         imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
         imageCreateInfo.format = textureFormat;
-        imageCreateInfo.extent = { texture.width, texture.height, 1 };
-        imageCreateInfo.mipLevels = texture.mipLevels;
-        imageCreateInfo.arrayLayers = texture.layerCount;
+        imageCreateInfo.extent = { vulkanTexture.width, vulkanTexture.height, 1 };
+        imageCreateInfo.mipLevels = vulkanTexture.mipLevels;
+        imageCreateInfo.arrayLayers = vulkanTexture.layerCount;
         imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;;
+        imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
         VmaAllocationCreateInfo imageAllocationCreateInfo{};
-        bufferAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        bufferAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        imageAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        imageAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-        if (vmaCreateImage(base_vmaAllocator, &imageCreateInfo, &imageAllocationCreateInfo, &texture.image, &texture.vmaAllocation, &texture.vmaAllocationInfo) != VK_SUCCESS) {
+        if (vmaCreateImage(base_vmaAllocator, &imageCreateInfo, &imageAllocationCreateInfo, &vulkanTexture.image, &vulkanTexture.vmaImageAllocation, &vulkanTexture.vmaImageAllocationInfo) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to create image!");
         }
 
@@ -236,14 +218,14 @@ public:
         // Start at first mip level
         subresourceRange.baseMipLevel = 0;
         // We will transition on all layers and mip levels
-        subresourceRange.levelCount = texture.mipLevels;
+        subresourceRange.levelCount = vulkanTexture.mipLevels;
         subresourceRange.baseArrayLayer = 0;
-        subresourceRange.layerCount = texture.layerCount;
+        subresourceRange.layerCount = vulkanTexture.layerCount;
 
         // Transition the texture image layout to transfer target, so we can safely copy our buffer data to it
         vulkanTools::insertImageMemoryBarrier(
             commandBuffer,
-            texture.image,
+            vulkanTexture.image,
             0, // srcAccessMask - We do not perform any operations before memory barrier
             VK_ACCESS_TRANSFER_WRITE_BIT, // dstAccessMask - We write after memory barrier
             VK_IMAGE_LAYOUT_UNDEFINED, // oldImageLayout
@@ -256,8 +238,8 @@ public:
 
         // Setup buffer copy regions for each layer and mip level
         std::vector<VkBufferImageCopy> bufferCopyRegions;
-        for (uint32_t currentLayer = 0; currentLayer < texture.layerCount; currentLayer++) {
-            for (uint32_t currentLevel = 0; currentLevel < texture.mipLevels; currentLevel++) {
+        for (uint32_t currentLayer = 0; currentLayer < vulkanTexture.layerCount; currentLayer++) {
+            for (uint32_t currentLevel = 0; currentLevel < vulkanTexture.mipLevels; currentLevel++) {
                 ktx_size_t offset;
                 KTX_error_code ret = ktxTexture_GetImageOffset(ktxTexture, currentLevel, currentLayer, 0, &offset);
                 assert(ret == KTX_SUCCESS);
@@ -278,8 +260,8 @@ public:
         // Copy mip levels from staging buffer
         vkCmdCopyBufferToImage(
             commandBuffer,
-            stagingBuffer,
-            texture.image,
+            stagingBuffer.buffer,
+            vulkanTexture.image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             bufferCopyRegions.size(),
             bufferCopyRegions.data());
@@ -287,7 +269,7 @@ public:
         // Change image layout to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL after transfer
         vulkanTools::insertImageMemoryBarrier(
             commandBuffer,
-            texture.image,
+            vulkanTexture.image,
             VK_ACCESS_TRANSFER_WRITE_BIT, // srcAccessMask - We write the data to the image
             VK_ACCESS_SHADER_READ_BIT, // dstAccessMask - The shader reads data from the image
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, // oldImageLayout
@@ -297,28 +279,28 @@ public:
             subresourceRange);
 
         // Store current layout for later reuse
-        texture.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        vulkanTexture.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         base_vulkanDevice->endSingleTimeCommands(commandBuffer, base_graphicsQueue, base_commandPoolGraphics);
 
         // Destroy staging buffer
-        vmaDestroyBuffer(base_vmaAllocator, stagingBuffer, stagingBufferAllocation);
+        stagingBuffer.destroy();
         ktxTexture_Destroy(ktxTexture);
 
         // Create image view
         VkImageViewCreateInfo imageViewCreateInfo{};
         imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageViewCreateInfo.image = texture.image;
+        imageViewCreateInfo.image = vulkanTexture.image;
         imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
         imageViewCreateInfo.format = textureFormat;
         imageViewCreateInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
         imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-        imageViewCreateInfo.subresourceRange.levelCount = texture.mipLevels;
+        imageViewCreateInfo.subresourceRange.levelCount = vulkanTexture.mipLevels;
         imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-        imageViewCreateInfo.subresourceRange.layerCount = texture.layerCount;
+        imageViewCreateInfo.subresourceRange.layerCount = vulkanTexture.layerCount;
 
-        if (vkCreateImageView(base_vulkanDevice->logicalDevice, &imageViewCreateInfo, nullptr, &texture.imageView) != VK_SUCCESS) {
+        if (vkCreateImageView(base_vulkanDevice->logicalDevice, &imageViewCreateInfo, nullptr, &vulkanTexture.imageView) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to create image view!");
         }
 
@@ -344,56 +326,45 @@ public:
         samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
         samplerCreateInfo.mipLodBias = 0.0f;
         samplerCreateInfo.minLod = 0.0f;
-        samplerCreateInfo.maxLod = (float)texture.mipLevels;
+        samplerCreateInfo.maxLod = (float)vulkanTexture.mipLevels;
         samplerCreateInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
         samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
 
-        if (vkCreateSampler(base_vulkanDevice->logicalDevice, &samplerCreateInfo, nullptr, &texture.sampler) != VK_SUCCESS) {
+        if (vkCreateSampler(base_vulkanDevice->logicalDevice, &samplerCreateInfo, nullptr, &vulkanTexture.sampler) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to create sampler!");
         }
+
+        vulkanTexture.descriptor.sampler = vulkanTexture.sampler;
+        vulkanTexture.descriptor.imageView = vulkanTexture.imageView;
+        vulkanTexture.descriptor.imageLayout = vulkanTexture.imageLayout;
+        //*/
     }
 
     void createBuffers()
     {
         // Vertex buffer
-        VkBufferCreateInfo bufferCreateInfo{};
-        bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferCreateInfo.size = VkDeviceSize(sizeof(vertexes[0])) * vertexes.size();
-        bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        VmaAllocationCreateInfo bufferAllocationCreateInfo{};
-        bufferAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        bufferAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        bufferAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // We must use memcpy (not random access!)
-
-        if (vmaCreateBuffer(base_vmaAllocator, &bufferCreateInfo, &bufferAllocationCreateInfo, &vertexesBuffer, &vertexesBufferAllocation, &vertexesBufferAllocationInfo) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to create buffer!");
-        }
-
-        // Map buffer memory and copy vertexes data
-        void* mappedBufferData = nullptr;
-        if (vmaMapMemory(base_vmaAllocator, vertexesBufferAllocation, &mappedBufferData)) {
-            throw MakeErrorInfo("Failed to map buffer!");
-        }
-        memcpy(mappedBufferData, vertexes.data(), (size_t)bufferCreateInfo.size);
-        vmaUnmapMemory(base_vmaAllocator, vertexesBufferAllocation);
+        vertexBuffer.setDeviceAndAllocator(base_vulkanDevice, base_vmaAllocator);
+        vertexBuffer.createBuffer(
+            sizeof(vertexes[0]) * vertexes.size(),
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            vertexes.data(),
+            sizeof(vertexes[0]) * vertexes.size()
+        );
 
         // Indixes buffer
-        bufferCreateInfo.size = VkDeviceSize(sizeof(indexes[0])) * indexes.size();
-        bufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-
-        if (vmaCreateBuffer(base_vmaAllocator, &bufferCreateInfo, &bufferAllocationCreateInfo, &indexesBuffer, &indexesBufferAllocation, &indexesBufferAllocationInfo) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to create buffer!");
-        }
-
-        // Map buffer memory and copy indexes data
-        if (vmaMapMemory(base_vmaAllocator, indexesBufferAllocation, &mappedBufferData)) {
-            throw MakeErrorInfo("Failed to map buffer!");
-        }
-        memcpy(mappedBufferData, indexes.data(), (size_t)bufferCreateInfo.size);
-        vmaUnmapMemory(base_vmaAllocator, indexesBufferAllocation);
+        indexBuffer.setDeviceAndAllocator(base_vulkanDevice, base_vmaAllocator);
+        indexBuffer.createBuffer(
+            sizeof(indexes[0]) * indexes.size(),
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            indexes.data(),
+            sizeof(indexes[0]) * indexes.size()
+        );
     }
 
     void createDescriptorSetLayouts()
@@ -443,10 +414,6 @@ public:
         }
 
         // Write descriptor
-        texture.descriptor.sampler = texture.sampler;
-        texture.descriptor.imageView = texture.imageView;
-        texture.descriptor.imageLayout = texture.imageLayout;
-
         VkWriteDescriptorSet writeDescriptorSet{};
         writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeDescriptorSet.dstSet = descriptorSet;
@@ -454,7 +421,7 @@ public:
         writeDescriptorSet.dstArrayElement = 0;
         writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writeDescriptorSet.descriptorCount = 1;
-        writeDescriptorSet.pImageInfo = &texture.descriptor;
+        writeDescriptorSet.pImageInfo = &vulkanTexture.descriptor;
 
         vkUpdateDescriptorSets(base_vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
     }
@@ -690,8 +657,8 @@ public:
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
         std::vector<VkDeviceSize> offsets(vertexes.size(), 0);
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexesBuffer, offsets.data());
-        vkCmdBindIndexBuffer(commandBuffer, indexesBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets.data());
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 
         vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstantData), &pushConstantData);
@@ -709,9 +676,9 @@ public:
     {
         UIOverlay::windowBegin(base_title.c_str(), nullptr, { 0, 0 }, { 300, 100 });
         UIOverlay::printFPS((float)base_frameTime, 500);
-        ImGui::SliderFloat("LOD bias", &pushConstantData.lodBias, 0.0f, (float)texture.mipLevels);
+        ImGui::SliderFloat("LOD bias", &pushConstantData.lodBias, 0.0f, (float)vulkanTexture.mipLevels);
         static int currentLayer = 0;
-        ImGui::SliderInt("Layer", &currentLayer, 0, texture.layerCount - 1);
+        ImGui::SliderInt("Layer", &currentLayer, 0, vulkanTexture.layerCount - 1);
         pushConstantData.currentLayer = (float)currentLayer;
         UIOverlay::windowEnd();
     }

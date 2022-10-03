@@ -4,7 +4,7 @@ std::string EXAMPLE_NAME_STR = std::string("DynamicDescriptorSets");
 
 class Sample : public BaseSample
 {
-    static constexpr uint32_t NUMBER_OF_TRIANGLES = 3;
+    static constexpr uint32_t       NUMBER_OF_TRIANGLES = 3;
     VkDescriptorPool                descriptorPool = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet>    descriptorSets;
 
@@ -14,9 +14,7 @@ class Sample : public BaseSample
         glm::vec3 position;
         glm::vec3 color;
     };
-    VkBuffer                        vertexesBuffer = VK_NULL_HANDLE;
-    VmaAllocation                   vertexesBufferAllocation = 0;
-    VmaAllocationInfo               vertexesBufferAllocationInfo{};
+    VulkanBuffer                    vertexBuffer;
 
     // Matrixes
     struct UBOmatrixes
@@ -25,10 +23,8 @@ class Sample : public BaseSample
         alignas(16) glm::mat4 view;
         alignas(16) glm::mat4 model;
     };
-    std::vector<VkBuffer>           UBOmatrixesBuffers;
-    std::vector<VmaAllocation>      UBOmatrixesBufferAllocations;
-    std::vector<VmaAllocationInfo>  UBOmatrixesBufferAllocationInfos{};
-    VkDescriptorSetLayout           UBOmatrixesDescriptorSetLayout = VK_NULL_HANDLE;
+    std::vector<VulkanBuffer>       matrixesBuffers;
+    VkDescriptorSetLayout           matrixesDescriptorSetLayout = VK_NULL_HANDLE;
 
     std::vector<Vertex> vertexes = {
         { glm::vec3(0.0, 0.5, 0.0), glm::vec3(1.0, 0.0, 0.0) },
@@ -72,17 +68,13 @@ public:
         vkDestroyDescriptorPool(base_vulkanDevice->logicalDevice, descriptorPool, nullptr);
 
         // Descriptor set layouts
-        vkDestroyDescriptorSetLayout(base_vulkanDevice->logicalDevice, UBOmatrixesDescriptorSetLayout, nullptr);
+        vkDestroyDescriptorSetLayout(base_vulkanDevice->logicalDevice, matrixesDescriptorSetLayout, nullptr);
 
         // Buffers
-        for (uint32_t i = 0; i < UBOmatrixesBuffers.size(); ++i) {
-            vmaDestroyBuffer(base_vmaAllocator, UBOmatrixesBuffers[i], UBOmatrixesBufferAllocations[i]);
+        for (uint32_t i = 0; i < matrixesBuffers.size(); ++i) {
+            matrixesBuffers[i].destroy();
         }
-        vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
-    }
-
-    ~Sample()
-    {
+        vertexBuffer.destroy();
     }
 
     void draw()
@@ -144,56 +136,33 @@ public:
     void createBuffers()
     {
         // Vertex buffer
-        VkBufferCreateInfo vertexBufferCreateInfo{};
-        vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        vertexBufferCreateInfo.size = VkDeviceSize(sizeof(vertexes[0])) * vertexes.size();
-        vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        vertexBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        vertexBuffer.setDeviceAndAllocator(base_vulkanDevice, base_vmaAllocator);
+        vertexBuffer.createBuffer(
+            VkDeviceSize(sizeof(vertexes[0])) * vertexes.size(),
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            vertexes.data(),
+            VkDeviceSize(sizeof(vertexes[0])) * vertexes.size()
+        );
 
-        VmaAllocationCreateInfo vertexBufferAllocationCreateInfo{};
-        vertexBufferAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        vertexBufferAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        vertexBufferAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // We must use memcpy (not random access!)
-
-        if (vmaCreateBuffer(base_vmaAllocator, &vertexBufferCreateInfo, &vertexBufferAllocationCreateInfo, &vertexesBuffer, &vertexesBufferAllocation, &vertexesBufferAllocationInfo) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to create buffer!");
-        }
-
-        // Map buffer memory and copy vertexes data
-        void* mappedBufferData = nullptr;
-        if (vmaMapMemory(base_vmaAllocator, vertexesBufferAllocation, &mappedBufferData)) {
-            throw MakeErrorInfo("Failed to map buffer!");
-        }
-        memcpy(mappedBufferData, vertexes.data(), (size_t)vertexBufferCreateInfo.size);
-        vmaUnmapMemory(base_vmaAllocator, vertexesBufferAllocation);
-
-        // UBO matrixes buffers
-        VkBufferCreateInfo UBOmatrixesBufferCreateInfo{};
-        UBOmatrixesBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        UBOmatrixesBufferCreateInfo.size = (VkDeviceSize)dynamicUniformBufferAllignedSize(sizeof(UBOmatrixes)) * NUMBER_OF_TRIANGLES;
-        UBOmatrixesBufferCreateInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-        UBOmatrixesBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        VmaAllocationCreateInfo UBOmatrixesAllocationCreateInfo{};
-        UBOmatrixesAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        UBOmatrixesAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        UBOmatrixesAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
-
-        UBOmatrixesBuffers.resize(BASE_MAX_FRAMES_IN_FLIGHT);
-        UBOmatrixesBufferAllocations.resize(BASE_MAX_FRAMES_IN_FLIGHT);
-        UBOmatrixesBufferAllocationInfos.resize(BASE_MAX_FRAMES_IN_FLIGHT);
+        // matrixes uniform buffers
         for (uint32_t i = 0; i < BASE_MAX_FRAMES_IN_FLIGHT; ++i) {
-            if (vmaCreateBuffer(base_vmaAllocator, &UBOmatrixesBufferCreateInfo, &UBOmatrixesAllocationCreateInfo, &UBOmatrixesBuffers[i], &UBOmatrixesBufferAllocations[i], &UBOmatrixesBufferAllocationInfos[i]) != VK_SUCCESS) {
-                throw MakeErrorInfo("Failed to create buffer!");
-            }
+            matrixesBuffers.push_back({ base_vulkanDevice, base_vmaAllocator });
+            matrixesBuffers.back().createBuffer(
+                (VkDeviceSize)dynamicUniformBufferAllignedSize(sizeof(UBOmatrixes)) * NUMBER_OF_TRIANGLES,
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+            );
         }
     }
 
     void createDescriptorSetLayouts()
     {
-        // Binding for descriptor set
+        // Binding for descriptor set with 1 descriptor
         VkDescriptorSetLayoutBinding uboLayoutBinding{};
         uboLayoutBinding.binding = 0;
         uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
@@ -205,7 +174,7 @@ public:
         descriptorSetLayoutCreateInfo.bindingCount = 1;
         descriptorSetLayoutCreateInfo.pBindings = &uboLayoutBinding;
 
-        if (vkCreateDescriptorSetLayout(base_vulkanDevice->logicalDevice, &descriptorSetLayoutCreateInfo, nullptr, &UBOmatrixesDescriptorSetLayout) != VK_SUCCESS) {
+        if (vkCreateDescriptorSetLayout(base_vulkanDevice->logicalDevice, &descriptorSetLayoutCreateInfo, nullptr, &matrixesDescriptorSetLayout) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to create descriptor set!");
         }
     }
@@ -230,7 +199,7 @@ public:
 
         // Allocate descriptor sets(one descriptor set per frame)
         descriptorSets.resize(BASE_MAX_FRAMES_IN_FLIGHT);
-        std::vector<VkDescriptorSetLayout> setsLayouts(BASE_MAX_FRAMES_IN_FLIGHT, UBOmatrixesDescriptorSetLayout);
+        std::vector<VkDescriptorSetLayout> setsLayouts(BASE_MAX_FRAMES_IN_FLIGHT, matrixesDescriptorSetLayout);
         VkDescriptorSetAllocateInfo setsAllocInfo{};
         setsAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         setsAllocInfo.descriptorPool = descriptorPool;
@@ -244,7 +213,7 @@ public:
         // Write descriptors
         for (size_t i = 0; i < BASE_MAX_FRAMES_IN_FLIGHT; i++) {
             VkDescriptorBufferInfo bufferDescriptorInfo{};
-            bufferDescriptorInfo.buffer = UBOmatrixesBuffers[i];
+            bufferDescriptorInfo.buffer = matrixesBuffers[i].buffer;
             bufferDescriptorInfo.offset = 0;
             bufferDescriptorInfo.range = sizeof(UBOmatrixes);
 
@@ -400,9 +369,7 @@ public:
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = 1;
-        pipelineLayoutInfo.pSetLayouts = &UBOmatrixesDescriptorSetLayout;
-        pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-        pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+        pipelineLayoutInfo.pSetLayouts = &matrixesDescriptorSetLayout;
 
         if (vkCreatePipelineLayout(base_vulkanDevice->logicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
             throw MakeErrorInfo("Failed to create pipeline layout!");
@@ -448,7 +415,7 @@ public:
         rotation += 30.0f * (float)base_frameTime / 1000.f;
 
         glm::mat4 transform = glm::mat4(1.0f);
-        transform = glm::translate(transform, glm::vec3(-0.5f, 0.0f, 0.5f));
+        transform = glm::translate(transform, glm::vec3(-0.5f, 0.0f, -0.5f));
         transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
         matrixes[0].model = transform;
 
@@ -458,20 +425,18 @@ public:
         matrixes[1].model = transform;
         
         transform = glm::mat4(1.0f);
-        transform = glm::translate(transform, glm::vec3(0.5f, 0.0f, -0.5f));
+        transform = glm::translate(transform, glm::vec3(0.5f, 0.0f, 0.5f));
         transform = glm::rotate(transform, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
         matrixes[2].model = transform;
 
         void* mappedBufferData = nullptr;
-        if (vmaMapMemory(base_vmaAllocator, UBOmatrixesBufferAllocations[currentFrame], &mappedBufferData) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to map buffer!");
-        }
+        matrixesBuffers[currentFrame].map(&mappedBufferData);
         for (uint32_t i = 0; i < NUMBER_OF_TRIANGLES; ++i) {
             byte* ptr = (byte*)mappedBufferData;
             ptr += dynamicUniformBufferAllignedSize(sizeof(UBOmatrixes)) * i;
             memcpy((void*)ptr, &matrixes[i], sizeof(UBOmatrixes));
         }
-        vmaUnmapMemory(base_vmaAllocator, UBOmatrixesBufferAllocations[currentFrame]);
+        matrixesBuffers[currentFrame].unmap();
     }
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
@@ -514,7 +479,7 @@ public:
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
         std::vector<VkDeviceSize> offsets(vertexes.size(), 0);
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexesBuffer, offsets.data());
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets.data());
 
         for (uint32_t i = 0; i < NUMBER_OF_TRIANGLES; ++i) {
             uint32_t dynamic_offset = dynamicUniformBufferAllignedSize(sizeof(UBOmatrixes) * i);

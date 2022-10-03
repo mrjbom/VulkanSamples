@@ -809,7 +809,7 @@ void vulkanglTF::Model::loadFromFile(std::string filePath, uint32_t fileLoadingF
 
     if (!fileLoaded) {
         throw MakeErrorInfo("glTF: Failed to load model from file!\n"
-            "Error:" + error);
+                            "Error:" + error);
     }
 
     if (!(fileLoadingFlags & FileLoadingFlags::DontLoadImages)) {

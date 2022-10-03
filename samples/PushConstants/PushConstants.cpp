@@ -11,9 +11,7 @@ class Sample : public BaseSample
     {
         glm::vec3 position;
     };
-    VkBuffer                        vertexesBuffer = VK_NULL_HANDLE;
-    VmaAllocation                   vertexesBufferAllocation = 0;
-    VmaAllocationInfo               vertexesBufferAllocationInfo{};
+    VulkanBuffer    vertexBuffer;
 
     // Matrixes
     struct MatrixPushConstant
@@ -79,7 +77,7 @@ public:
         vkDestroyPipeline(base_vulkanDevice->logicalDevice, graphicsPipeline, nullptr);
 
         // Buffers
-        vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
+        vertexBuffer.destroy();
     }
 
     void draw()
@@ -130,29 +128,16 @@ public:
     void createBuffers()
     {
         // Vertex buffer
-        VkBufferCreateInfo vertexBufferCreateInfo{};
-        vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        vertexBufferCreateInfo.size = VkDeviceSize(sizeof(vertexes[0])) * vertexes.size();
-        vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        vertexBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        VmaAllocationCreateInfo vertexBufferAllocationCreateInfo{};
-        vertexBufferAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        vertexBufferAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        vertexBufferAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // We must use memcpy (not random access!)
-
-        if (vmaCreateBuffer(base_vmaAllocator, &vertexBufferCreateInfo, &vertexBufferAllocationCreateInfo, &vertexesBuffer, &vertexesBufferAllocation, &vertexesBufferAllocationInfo) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to create buffer!");
-        }
-
-        // Map buffer memory and copy vertexes data
-        void* mappedBufferData = nullptr;
-        if (vmaMapMemory(base_vmaAllocator, vertexesBufferAllocation, &mappedBufferData)) {
-            throw MakeErrorInfo("Failed to map buffer!");
-        }
-        memcpy(mappedBufferData, vertexes.data(), (size_t)vertexBufferCreateInfo.size);
-        vmaUnmapMemory(base_vmaAllocator, vertexesBufferAllocation);
+        vertexBuffer.setDeviceAndAllocator(base_vulkanDevice, base_vmaAllocator);
+        vertexBuffer.createBuffer(
+            VkDeviceSize(sizeof(vertexes[0])) * vertexes.size(),
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            vertexes.data(),
+            VkDeviceSize(sizeof(vertexes[0])) * vertexes.size()
+        );
     }
 
     void createGraphicsPipeline()
@@ -405,7 +390,7 @@ public:
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
         std::vector<VkDeviceSize> offsets(vertexes.size(), 0);
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexesBuffer, offsets.data());
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets.data());
 
         for (uint32_t i = 0; i < NUMBER_OF_TRIANGLES; ++i) {
             vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MatrixPushConstant), &matrixPushConstants[i]);

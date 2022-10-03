@@ -16,9 +16,12 @@ public:
     VmaAllocation vmaAllocation{};
     VmaAllocationInfo vmaAllocationInfo{};
     VkDescriptorBufferInfo descriptor;
-public:
+
     VulkanBuffer(VulkanDevice* vulkanDevice, VmaAllocator vmaAllocator);
-    
+    VulkanBuffer();
+    // Set the device and allocator if they were not specified in the constructor
+    void setDeviceAndAllocator(VulkanDevice* vulkanDevice, VmaAllocator vmaAllocator);
+
     // Creating buffer using VMA
     // - bufferSize
     // The size of the new buffer

@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 #include "VulkanDevice.h"
 #include "VulkanTools.h"
+#include "VulkanBuffer.h"
 #include "vk_mem_alloc.h"
 #define KHRONOS_STATIC
 #include <ktx.h>
@@ -10,6 +11,8 @@
 class VulkanTexture
 {
 public:
+    VulkanDevice*           vulkanDevice = nullptr;
+    VmaAllocator            vmaAllocator = 0;
     VkImage                 image = VK_NULL_HANDLE;
     VkImageView             imageView = VK_NULL_HANDLE;
     VkImageLayout           imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -22,25 +25,43 @@ public:
     VkSampler               sampler = VK_NULL_HANDLE;
 
     // For VMA
-    VmaAllocation           vmaAllocation = nullptr;
-    VmaAllocationInfo       vmaAllocationInfo{};
-    
-    void destroy(VulkanDevice* vulkanDevice, VmaAllocator vmaAllocator);
+    VmaAllocation           vmaImageAllocation = nullptr;
+    VmaAllocationInfo       vmaImageAllocationInfo{};
+public:
+    void updateDescriptor();
+
+    void destroy();
 };
 
 class VulkanTexture2D : public VulkanTexture
 {
 public:
+    VulkanTexture2D(VulkanDevice* vulkanDevice, VmaAllocator vmaAllocator);
+
+    VulkanTexture2D();
+
+    // Set the device and allocator if they were not specified in the constructor
+    void setDeviceAndAllocator(VulkanDevice* vulkanDevice, VmaAllocator vmaAllocator);
+
     // Load image data from byte array(Raw data of RGBA image!)
     // Create VkImage, VkImageView and VkSampler for texture
     void createTextureFromRawData(
-        VulkanDevice* vulkanDevice,
         VkQueue transferQueue,
         VkCommandPool transferCommandPool,
         unsigned char* imageData,
         uint32_t width,
         uint32_t height,
-        VmaAllocator vmaAllocator,
+        VkFilter filter = VK_FILTER_LINEAR,
+        VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
+        VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
+
+    // Load image data from KTX texture file
+    // Create VkImage, VkImageView and VkSampler for texture
+    void createTextureFromKTX(
+        VkQueue transferQueue,
+        VkCommandPool transferCommandPool,
+        std::string filePath,
         VkFilter filter = VK_FILTER_LINEAR,
         VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
         VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL

@@ -1,5 +1,7 @@
 #include "../../Base/BaseSample.h"
 
+// Just draws a triangle demonstrating how the base class abstracts the routine
+
 std::string EXAMPLE_NAME_STR = std::string("TriangleSample");
 
 class Sample : public BaseSample
@@ -16,14 +18,12 @@ class Sample : public BaseSample
         { glm::vec3(-0.5, -0.5, 0.0), glm::vec3(0.0, 0.0, 1.0) }
     };
 
-    VkBuffer vertexesBuffer = VK_NULL_HANDLE;
-    VmaAllocation vertexesBufferAllocation = 0;
-    VmaAllocationInfo vertexesBufferAllocationInfo{};
+    VulkanBuffer        vertexBuffer;
 
-    VkShaderModule vertShaderModule = VK_NULL_HANDLE;
-    VkShaderModule fragShaderModule = VK_NULL_HANDLE;
-    VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-    VkPipeline graphicsPipeline = VK_NULL_HANDLE;
+    VkShaderModule      vertShaderModule = VK_NULL_HANDLE;
+    VkShaderModule      fragShaderModule = VK_NULL_HANDLE;
+    VkPipelineLayout    pipelineLayout = VK_NULL_HANDLE;
+    VkPipeline          graphicsPipeline = VK_NULL_HANDLE;
 
 public:
     Sample()
@@ -83,11 +83,7 @@ public:
         vkDestroyPipeline(base_vulkanDevice->logicalDevice, graphicsPipeline, nullptr);
 
         // Buffer
-        vmaDestroyBuffer(base_vmaAllocator, vertexesBuffer, vertexesBufferAllocation);
-    }
-
-    ~Sample()
-    {
+        vertexBuffer.destroy();
     }
 
     bool getEnabledFeatures(VkPhysicalDevice physicalDevice)
@@ -97,29 +93,17 @@ public:
 
     void createBuffers()
     {
-        VkBufferCreateInfo bufferCreateInfo{};
-        bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferCreateInfo.size = VkDeviceSize(sizeof(vertexes[0])) * vertexes.size();
-        bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        VmaAllocationCreateInfo allocationCreateInfo{};
-        allocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        allocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // We must use memcpy (not random access!)
-
-        if (vmaCreateBuffer(base_vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vertexesBuffer, &vertexesBufferAllocation, &vertexesBufferAllocationInfo) != VK_SUCCESS) {
-            throw MakeErrorInfo("Failed to create buffer!");
-        }
-
-        // Map buffer memory and copy vertexes data
-        void* bufferMappedData = nullptr;
-        if (vmaMapMemory(base_vmaAllocator, vertexesBufferAllocation, &bufferMappedData)) {
-            throw MakeErrorInfo("Failed to map buffer!");
-        }
-        memcpy(bufferMappedData, vertexes.data(), sizeof(vertexes[0]) * vertexes.size());
-        vmaUnmapMemory(base_vmaAllocator, vertexesBufferAllocation);
+        // Vertex buffer
+        vertexBuffer.setDeviceAndAllocator(base_vulkanDevice, base_vmaAllocator);
+        vertexBuffer.createBuffer(
+            VkDeviceSize(sizeof(vertexes[0])) * vertexes.size(),
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            vertexes.data(),
+            VkDeviceSize(sizeof(vertexes[0])) * vertexes.size()
+        );
     }
 
     void createGraphicsPipeline()
@@ -331,7 +315,7 @@ public:
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
         std::vector<VkDeviceSize> offsets(vertexes.size(), 0);
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexesBuffer, offsets.data());
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets.data());
 
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 

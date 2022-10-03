@@ -6,6 +6,18 @@ VulkanBuffer::VulkanBuffer(VulkanDevice* vulkanDevice, VmaAllocator vmaAllocator
     this->vmaAllocator = vmaAllocator;
 }
 
+VulkanBuffer::VulkanBuffer()
+{
+    this->vulkanDevice = nullptr;
+    this->vmaAllocator = 0;
+}
+
+void VulkanBuffer::setDeviceAndAllocator(VulkanDevice* vulkanDevice, VmaAllocator vmaAllocator)
+{
+    this->vulkanDevice = vulkanDevice;
+    this->vmaAllocator = vmaAllocator;
+}
+
 void VulkanBuffer::createBuffer(size_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags requiredMemoryFlags, VmaAllocationCreateFlags vmaAllocationCreateFlags, void* pData, size_t pDataSize, VmaMemoryUsage vmaMemoryUsage)
 {
     if (buffer) {

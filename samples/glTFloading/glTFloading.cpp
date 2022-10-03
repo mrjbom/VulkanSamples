@@ -4,28 +4,28 @@ std::string EXAMPLE_NAME_STR = std::string("glTFloading");
 
 class Sample : public BaseSample
 {
-    vulkanglTF::Model*      model = nullptr;
+    vulkanglTF::Model*              model = nullptr;
 
     struct ShaderData {
-        VulkanBuffer* uboVulkanBuffer = nullptr;
-        struct UboValues {
+        VulkanBuffer vulkanBuffer;
+        struct Data {
             glm::mat4 projection = glm::mat4(1.0f);
             glm::mat4 view = glm::mat4(1.0f);
             glm::mat4 model = glm::mat4(1.0f);
-        } uboValues;
+        } data;
     };
 
     // One per frame
-    std::vector<ShaderData> shaderData;
+    std::vector<ShaderData>         shaderData;
 
-    VkShaderModule          vertShaderModule = VK_NULL_HANDLE;
-    VkShaderModule          fragShaderModule = VK_NULL_HANDLE;
-    VkPipelineLayout        pipelineLayout = VK_NULL_HANDLE;
-    VkPipeline              graphicsPipeline = VK_NULL_HANDLE;
+    VkShaderModule                  vertShaderModule = VK_NULL_HANDLE;
+    VkShaderModule                  fragShaderModule = VK_NULL_HANDLE;
+    VkPipelineLayout                pipelineLayout = VK_NULL_HANDLE;
+    VkPipeline                      graphicsPipeline = VK_NULL_HANDLE;
 
-    std::vector<VkDescriptorSet> descriptorSetsMatrices;
-    VkDescriptorSetLayout   descriptorSetLayoutMatrices = VK_NULL_HANDLE;
-    VkDescriptorPool        descriptorPool = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet>    descriptorSetsMatrices;
+    VkDescriptorSetLayout           descriptorSetLayoutMatrices = VK_NULL_HANDLE;
+    VkDescriptorPool                descriptorPool = VK_NULL_HANDLE;
 public:
     Sample()
     {
@@ -62,16 +62,11 @@ public:
 
         // Uniform buffer
         for (uint32_t i = 0; i < BASE_MAX_FRAMES_IN_FLIGHT; ++i) {
-            shaderData[i].uboVulkanBuffer->destroy();
-            delete shaderData[i].uboVulkanBuffer;
+            shaderData[i].vulkanBuffer.destroy();
         }
 
         // Model
         delete model;
-    }
-
-    ~Sample()
-    {
     }
 
     void draw()
@@ -134,8 +129,8 @@ public:
     {
         shaderData.resize(BASE_MAX_FRAMES_IN_FLIGHT);
         for (uint32_t i = 0; i < BASE_MAX_FRAMES_IN_FLIGHT; ++i) {
-            shaderData[i].uboVulkanBuffer = new VulkanBuffer(base_vulkanDevice, base_vmaAllocator);
-            shaderData[i].uboVulkanBuffer->createBuffer(
+            shaderData[i].vulkanBuffer.setDeviceAndAllocator(base_vulkanDevice, base_vmaAllocator);
+            shaderData[i].vulkanBuffer.createBuffer(
                 sizeof(ShaderData),
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -273,7 +268,7 @@ public:
                     descriptorSetsMatrices[i],
                     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     0,
-                    &shaderData[i].uboVulkanBuffer->descriptor,
+                    &shaderData[i].vulkanBuffer.descriptor,
                     1)
             };
 
@@ -287,14 +282,14 @@ public:
         base_camera.update((float)base_frameTime / 1000.0f);
 
         glm::mat4 model_transform = glm::mat4(1.0f);
-        shaderData[currentFrame].uboValues.projection = base_camera.matrices.perspective;
-        shaderData[currentFrame].uboValues.view = base_camera.matrices.view;
-        shaderData[currentFrame].uboValues.model = model_transform;
+        shaderData[currentFrame].data.projection = base_camera.matrices.perspective;
+        shaderData[currentFrame].data.view = base_camera.matrices.view;
+        shaderData[currentFrame].data.model = model_transform;
 
         void* pMappedBuffer = nullptr;
-        shaderData[currentFrame].uboVulkanBuffer->map(&pMappedBuffer);
-        memcpy(pMappedBuffer, &shaderData[currentFrame].uboValues, sizeof(ShaderData::UboValues));
-        shaderData[currentFrame].uboVulkanBuffer->unmap();
+        shaderData[currentFrame].vulkanBuffer.map(&pMappedBuffer);
+        memcpy(pMappedBuffer, &shaderData[currentFrame].data, sizeof(ShaderData::Data));
+        shaderData[currentFrame].vulkanBuffer.unmap();
     }
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
