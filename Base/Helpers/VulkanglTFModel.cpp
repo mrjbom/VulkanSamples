@@ -6,8 +6,6 @@
 
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
-#define TINYGLTF_NO_STB_IMAGE_WRITE
-
 #include "VulkanglTFModel.h"
 
 uint32_t vulkanglTF::descriptorBindingFlags = vulkanglTF::DescriptorBindingFlags::ImageBaseColor;
@@ -55,8 +53,8 @@ vulkanglTF::Model::~Model()
 void vulkanglTF::Model::loadImages(tinygltf::Model& gltfModel, VulkanDevice* device, VkQueue transferQueue)
 {
     for (tinygltf::Image& image : gltfModel.images) {
-        Texture texture;
-        texture.fromglTfImage(image, path, device, transferQueue, transferCommandPool, this->vmaAllocator);
+        VulkanTexture2D texture(vulkanDevice, vmaAllocator);
+        texture.createTextureFromglTF(transferQueue, transferCommandPool, image);
         textures.push_back(texture);
     }
     // Create an empty texture to be used for empty material images
@@ -120,218 +118,6 @@ void vulkanglTF::Material::createDescriptorSet(VkDescriptorPool descriptorPool, 
     vkUpdateDescriptorSets(vulkanDevice->logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 }
 
-void vulkanglTF::Texture::updateDescriptor()
-{
-    descriptor.sampler = sampler;
-    descriptor.imageView = imageView;
-    descriptor.imageLayout = imageLayout;
-}
-
-void vulkanglTF::Texture::destroy()
-{
-    if (vulkanDevice)
-    {
-        vkDestroySampler(vulkanDevice->logicalDevice, sampler, nullptr);
-        vkDestroyImageView(vulkanDevice->logicalDevice, imageView, nullptr);
-        vmaDestroyImage(vmaAllocator, image, vmaAllocation);
-    }
-}
-
-void vulkanglTF::Texture::fromglTfImage(tinygltf::Image& gltfimage, std::string path, VulkanDevice* vulkanDevice, VkQueue transferQueue, VkCommandPool transferCommandPool, VmaAllocator vmaAllocator)
-{
-    this->vulkanDevice = vulkanDevice;
-    this->vmaAllocator = vmaAllocator;
-    this->width = gltfimage.width;
-    this->height = gltfimage.height;
-    this->layerCount = 1;
-    this->mipLevels = 1;
-
-    unsigned char* buffer = nullptr;
-    size_t bufferSize = 0;
-    bool deleteBuffer = false;
-    if (gltfimage.component == 3) {
-        // Most devices don't support RGB only on Vulkan so convert if necessary
-        // TODO: Check actual format support and transform only if required
-        bufferSize = gltfimage.width * gltfimage.height * 4;
-        buffer = new unsigned char[bufferSize];
-        unsigned char* rgba = buffer;
-        unsigned char* rgb = &gltfimage.image[0];
-        for (int i = 0; i < gltfimage.width * gltfimage.height; ++i) {
-            for (int32_t j = 0; j < 3; ++j) {
-                rgba[j] = rgb[j];
-            }
-            rgba += 4;
-            rgb += 3;
-        }
-        deleteBuffer = true;
-    }
-    else {
-        buffer = &gltfimage.image[0];
-        bufferSize = gltfimage.image.size();
-    }
-
-    uint32_t imageSize = width * height * 4;
-    unsigned char* imageData = buffer;
-
-    // Create staging buffer
-    VkBuffer stagingBuffer = VK_NULL_HANDLE;
-    VmaAllocation stagingBufferAllocation = 0;
-    VmaAllocationInfo stagingBufferAllocationInfo{};
-
-    VkBufferCreateInfo bufferCreateInfo{};
-    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferCreateInfo.size = imageSize;
-    // This buffer is used as a transfer source for the buffer copy
-    bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    VmaAllocationCreateInfo bufferAllocationCreateInfo{};
-    bufferAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    bufferAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    bufferAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // We must use memcpy (not random access!)
-
-    if (vmaCreateBuffer(vmaAllocator, &bufferCreateInfo, &bufferAllocationCreateInfo, &stagingBuffer, &stagingBufferAllocation, &stagingBufferAllocationInfo) != VK_SUCCESS) {
-        throw MakeErrorInfo("Failed to create buffer!");
-    }
-
-    // Map buffer memory and copy image data
-    void* mappedBufferData = nullptr;
-    if (vmaMapMemory(vmaAllocator, stagingBufferAllocation, &mappedBufferData)) {
-        throw MakeErrorInfo("Failed to map buffer!");
-    }
-    memcpy(mappedBufferData, imageData, (size_t)bufferCreateInfo.size);
-    vmaUnmapMemory(vmaAllocator, stagingBufferAllocation);
-
-    // Create image
-    VkImageCreateInfo imageCreateInfo{};
-    imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageCreateInfo.format = this->textureFormat;
-    imageCreateInfo.extent = { this->width, this->height, 1 };
-    imageCreateInfo.mipLevels = this->mipLevels;
-    imageCreateInfo.arrayLayers = this->layerCount;
-    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    VmaAllocationCreateInfo imageAllocationCreateInfo{};
-    bufferAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    bufferAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-    if (vmaCreateImage(vmaAllocator, &imageCreateInfo, &imageAllocationCreateInfo, &this->image, &this->vmaAllocation, &this->vmaAllocationInfo) != VK_SUCCESS) {
-        throw MakeErrorInfo("Failed to create image!");
-    }
-
-    // Copy image data from buffer to image
-    VkCommandBuffer commandBuffer = vulkanDevice->beginSingleTimeCommands(transferCommandPool);
-
-    VkImageSubresourceRange subresourceRange = {};
-    subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    subresourceRange.baseMipLevel = 0;
-    subresourceRange.levelCount = this->mipLevels;
-    subresourceRange.baseArrayLayer = 0;
-    subresourceRange.layerCount = 1;
-
-    // Transition the texture image layout to transfer target, so we can safely copy our buffer data to it
-    vulkanTools::insertImageMemoryBarrier(
-        commandBuffer,
-        this->image,
-        0, // srcAccessMask - We do not perform any operations before memory barrier
-        VK_ACCESS_TRANSFER_WRITE_BIT, // dstAccessMask - We write after memory barrier
-        VK_IMAGE_LAYOUT_UNDEFINED, // oldImageLayout
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, // newImageLayout
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // srcStageMask - We don't wait anything before the barrier
-        VK_PIPELINE_STAGE_TRANSFER_BIT, // dstStageMask - Stages in which we make transfer operations should wait a barrier
-        subresourceRange
-    );
-
-    // Copy buffer to image
-    // Setup buffer copy regions without mip levels and layers
-    VkBufferImageCopy bufferCopyRegion{};
-    bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    bufferCopyRegion.imageSubresource.mipLevel = 0;
-    bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
-    bufferCopyRegion.imageSubresource.layerCount = 1;
-    bufferCopyRegion.imageExtent.width = this->width;
-    bufferCopyRegion.imageExtent.height = this->height;
-    bufferCopyRegion.imageExtent.depth = 1;
-    bufferCopyRegion.bufferOffset = 0;
-
-    // Copy image from staging buffer
-    vkCmdCopyBufferToImage(
-        commandBuffer,
-        stagingBuffer,
-        this->image,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        1,
-        &bufferCopyRegion
-    );
-
-    // Change image layout to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL after transfer
-    vulkanTools::insertImageMemoryBarrier(
-        commandBuffer,
-        this->image,
-        VK_ACCESS_TRANSFER_WRITE_BIT, // srcAccessMask - We write the data to the image
-        VK_ACCESS_SHADER_READ_BIT, // dstAccessMask - The shader reads data from the image
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, // oldImageLayout
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, // newImageLayout
-        VK_PIPELINE_STAGE_TRANSFER_BIT, // srcStageMask - We have to wait for the transfer operation that loads the image
-        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, // dstStageMask - The shader should read the data only after it is loaded to image
-        subresourceRange
-    );
-
-    // Store current layout for later reuse
-    this->imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    vulkanDevice->endSingleTimeCommands(commandBuffer, transferQueue, transferCommandPool);
-    // Destroy staging buffer
-    vmaDestroyBuffer(vmaAllocator, stagingBuffer, stagingBufferAllocation);
-
-    // Create image view
-    VkImageViewCreateInfo imageViewCreateInfo{};
-    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    imageViewCreateInfo.image = this->image;
-    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    imageViewCreateInfo.format = this->textureFormat;
-    imageViewCreateInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-    imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-    imageViewCreateInfo.subresourceRange.levelCount = this->mipLevels;
-    imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    imageViewCreateInfo.subresourceRange.layerCount = 1;
-
-    if (vkCreateImageView(vulkanDevice->logicalDevice, &imageViewCreateInfo, nullptr, &this->imageView) != VK_SUCCESS) {
-        throw MakeErrorInfo("Failed to create image view!");
-    }
-
-    // Create sampler
-    VkSamplerCreateInfo samplerCreateInfo = {};
-    samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
-    samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
-    samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerCreateInfo.mipLodBias = 0.0f;
-    samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
-    samplerCreateInfo.minLod = 0.0f;
-    samplerCreateInfo.maxLod = 0.0f;
-    samplerCreateInfo.anisotropyEnable = VK_FALSE;
-    samplerCreateInfo.maxAnisotropy = 1.0f;
-
-    if (vkCreateSampler(vulkanDevice->logicalDevice, &samplerCreateInfo, nullptr, &this->sampler) != VK_SUCCESS) {
-        throw MakeErrorInfo("Failed to create sampler!");
-    }
-
-    descriptor.sampler = this->sampler;
-    descriptor.imageView = this->imageView;
-    descriptor.imageLayout = this->imageLayout;
-}
-
 glm::mat4 vulkanglTF::Node::localMatrix()
 {
     return glm::translate(glm::mat4(1.0f), translation) * glm::mat4(rotation) * glm::scale(glm::mat4(1.0f), scale) * matrix;
@@ -373,7 +159,7 @@ vulkanglTF::Node::~Node()
     }
 }
 
-vulkanglTF::Texture* vulkanglTF::Model::getTexture(uint32_t index)
+VulkanTexture2D* vulkanglTF::Model::getTexture(uint32_t index)
 {
     if (index >= textures.size()) {
         return nullptr;
@@ -383,47 +169,28 @@ vulkanglTF::Texture* vulkanglTF::Model::getTexture(uint32_t index)
 
 void vulkanglTF::Model::createEmptyTexture(VkQueue transferQueue)
 {
-    emptyTexture.vmaAllocator = vmaAllocator;
     emptyTexture.vulkanDevice = vulkanDevice;
+    emptyTexture.vmaAllocator = vmaAllocator;
     emptyTexture.width = 1;
     emptyTexture.height = 1;
     emptyTexture.layerCount = 1;
     emptyTexture.mipLevels = 1;
 
     uint32_t imageSize = emptyTexture.width * emptyTexture.height * 4;
-    unsigned char* imageData = new unsigned char[imageSize];
+    unsigned char* imageData = new byte[imageSize];
     memset(imageData, 0, imageSize);
 
     // Create staging buffer
-    VkBuffer stagingBuffer = VK_NULL_HANDLE;
-    VmaAllocation stagingBufferAllocation = 0;
-    VmaAllocationInfo stagingBufferAllocationInfo{};
-
-    VkBufferCreateInfo bufferCreateInfo{};
-    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferCreateInfo.size = imageSize;
-    // This buffer is used as a transfer source for the buffer copy
-    bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    VmaAllocationCreateInfo bufferAllocationCreateInfo{};
-    bufferAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    bufferAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    bufferAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // We must use memcpy (not random access!)
-
-    if (vmaCreateBuffer(vmaAllocator, &bufferCreateInfo, &bufferAllocationCreateInfo, &stagingBuffer, &stagingBufferAllocation, &stagingBufferAllocationInfo) != VK_SUCCESS) {
-        throw MakeErrorInfo("Failed to create buffer!");
-    }
-
-    // Map buffer memory and copy image data
-    void* mappedBufferData = nullptr;
-    if (vmaMapMemory(vmaAllocator, stagingBufferAllocation, &mappedBufferData)) {
-        throw MakeErrorInfo("Failed to map buffer!");
-    }
-    memcpy(mappedBufferData, imageData, (size_t)bufferCreateInfo.size);
-    vmaUnmapMemory(vmaAllocator, stagingBufferAllocation);
-    delete[] imageData;
+    VulkanBuffer stagingBuffer(vulkanDevice, vmaAllocator);
+    stagingBuffer.createBuffer(
+        imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+        imageData,
+        imageSize
+    );
 
     // Create image
     VkImageCreateInfo imageCreateInfo{};
@@ -440,10 +207,10 @@ void vulkanglTF::Model::createEmptyTexture(VkQueue transferQueue)
     imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     VmaAllocationCreateInfo imageAllocationCreateInfo{};
-    bufferAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    bufferAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    imageAllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    imageAllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    if (vmaCreateImage(vmaAllocator, &imageCreateInfo, &imageAllocationCreateInfo, &emptyTexture.image, &emptyTexture.vmaAllocation, &emptyTexture.vmaAllocationInfo) != VK_SUCCESS) {
+    if (vmaCreateImage(vmaAllocator, &imageCreateInfo, &imageAllocationCreateInfo, &emptyTexture.image, &emptyTexture.vmaImageAllocation, &emptyTexture.vmaImageAllocationInfo) != VK_SUCCESS) {
         throw MakeErrorInfo("Failed to create image!");
     }
 
@@ -485,7 +252,7 @@ void vulkanglTF::Model::createEmptyTexture(VkQueue transferQueue)
     // Copy image from staging buffer
     vkCmdCopyBufferToImage(
         commandBuffer,
-        stagingBuffer,
+        stagingBuffer.buffer,
         emptyTexture.image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1,
@@ -510,7 +277,7 @@ void vulkanglTF::Model::createEmptyTexture(VkQueue transferQueue)
 
     vulkanDevice->endSingleTimeCommands(commandBuffer, transferQueue, transferCommandPool);
     // Destroy staging buffer
-    vmaDestroyBuffer(vmaAllocator, stagingBuffer, stagingBufferAllocation);
+    stagingBuffer.destroy();
 
     // Create image view
     VkImageViewCreateInfo imageViewCreateInfo{};

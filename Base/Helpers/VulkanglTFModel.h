@@ -4,9 +4,9 @@
  * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
  */
 
-// TODO
-// Need to think about the possibility of using additional textures of materials.
-// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#additional-textures
+ // TODO
+ // Need to think about the possibility of using additional textures of materials.
+ // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#additional-textures
 
 #pragma once
 
@@ -23,9 +23,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-#define TINYGLTF_NO_STB_IMAGE_WRITE
-#include "tiny_gltf.h"
 
 namespace vulkanglTF
 {
@@ -107,8 +104,6 @@ namespace vulkanglTF
         ~Mesh();
     };
 
-    struct Texture;
-
     // A glTF material stores information in e.g. the texture that is attached to it and colors
     struct Material {
         VulkanDevice* vulkanDevice = nullptr;
@@ -118,14 +113,14 @@ namespace vulkanglTF
         float metallicFactor = 1.0f;
         float roughnessFactor = 1.0f;
         glm::vec4 baseColorFactor = glm::vec4(1.0f);
-        vulkanglTF::Texture* baseColorTexture = nullptr;
-        vulkanglTF::Texture* metallicRoughnessTexture = nullptr;
-        vulkanglTF::Texture* normalTexture = nullptr;
-        vulkanglTF::Texture* occlusionTexture = nullptr;
-        vulkanglTF::Texture* emissiveTexture = nullptr;
+        VulkanTexture2D* baseColorTexture = nullptr;
+        VulkanTexture2D* metallicRoughnessTexture = nullptr;
+        VulkanTexture2D* normalTexture = nullptr;
+        VulkanTexture2D* occlusionTexture = nullptr;
+        VulkanTexture2D* emissiveTexture = nullptr;
 
-        vulkanglTF::Texture* specularGlossinessTexture;
-        vulkanglTF::Texture* diffuseTexture;
+        VulkanTexture2D* specularGlossinessTexture;
+        VulkanTexture2D* diffuseTexture;
 
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
 
@@ -139,25 +134,6 @@ namespace vulkanglTF
         VulkanTexture2D texture;
         // We also store (and create) a descriptor set that's used to access this texture from the fragment shader
         VkDescriptorSet descriptorSet;
-    };
-
-    struct Texture {
-        VulkanDevice* vulkanDevice = nullptr;
-        VmaAllocator vmaAllocator;
-        VmaAllocation vmaAllocation;
-        VmaAllocationInfo vmaAllocationInfo{};
-        VkImage image = VK_NULL_HANDLE;
-        VkImageView imageView = VK_NULL_HANDLE;
-        VkImageLayout imageLayout;
-        VkFormat textureFormat = VK_FORMAT_R8G8B8A8_UNORM;
-        uint32_t width = 0, height = 0;
-        uint32_t mipLevels = 1;
-        uint32_t layerCount = 1;
-        VkDescriptorImageInfo descriptor{ 0, 0, VK_IMAGE_LAYOUT_UNDEFINED };
-        VkSampler sampler;
-        void updateDescriptor();
-        void destroy();
-        void fromglTfImage(tinygltf::Image& gltfimage, std::string path, VulkanDevice* vulkanDevice, VkQueue transferQueue, VkCommandPool transferCommandPool, VmaAllocator vmaAllocator);
     };
 
     // A node represents an object in the glTF scene graph
@@ -180,8 +156,8 @@ namespace vulkanglTF
     class Model
     {
     private:
-        Texture* getTexture(uint32_t index);
-        Texture emptyTexture;
+        VulkanTexture2D* getTexture(uint32_t index);
+        VulkanTexture2D emptyTexture;
         void createEmptyTexture(VkQueue transferQueue);
     public:
         // Single vertex buffer for all primitives
@@ -203,7 +179,7 @@ namespace vulkanglTF
         VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
         std::vector<Material> materials;
-        std::vector<Texture> textures;
+        std::vector<VulkanTexture2D> textures;
 
         std::string path;
 

@@ -8,6 +8,9 @@
 #define KHRONOS_STATIC
 #include <ktx.h>
 
+#define TINYGLTF_NO_STB_IMAGE_WRITE
+#include "tiny_gltf.h"
+
 class VulkanTexture
 {
 public:
@@ -45,7 +48,7 @@ public:
 
     // Load image data from byte array(Raw data of RGBA image!)
     // Create VkImage, VkImageView and VkSampler for texture
-    void createTextureFromRawData(
+    void createTextureFromMemory(
         VkQueue transferQueue,
         VkCommandPool transferCommandPool,
         unsigned char* imageData,
@@ -65,6 +68,14 @@ public:
         VkFilter filter = VK_FILTER_LINEAR,
         VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
         VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
+
+    // Load image data from glTF file
+    // Create VkImage, VkImageView and VkSampler for texture
+    void createTextureFromglTF(
+        VkQueue transferQueue,
+        VkCommandPool transferCommandPool,
+        tinygltf::Image& glTFImage
     );
 };
 

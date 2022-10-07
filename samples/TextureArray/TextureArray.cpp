@@ -133,7 +133,7 @@ public:
     void loadTexture()
     {
         // We use the Khronos texture format (https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/)
-        std::string filePath = ASSETS_DATA_PATH + "/textures/3layers3mips.ktx";
+        std::string filePath = ASSETS_DATA_PATH + "/textures/3layers3mipsTest.ktx";
         
         /*
         vulkanTexture.setDeviceAndAllocator(base_vulkanDevice, base_vmaAllocator);

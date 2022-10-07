@@ -39,7 +39,7 @@ void VulkanTexture2D::setDeviceAndAllocator(VulkanDevice* vulkanDevice, VmaAlloc
 }
 
 
-void VulkanTexture2D::createTextureFromRawData(VkQueue transferQueue, VkCommandPool transferCommandPool, unsigned char* imageData, uint32_t width, uint32_t height, VkFilter filter, VkImageUsageFlags imageUsageFlags, VkImageLayout imageLayout)
+void VulkanTexture2D::createTextureFromMemory(VkQueue transferQueue, VkCommandPool transferCommandPool, unsigned char* imageData, uint32_t width, uint32_t height, VkFilter filter, VkImageUsageFlags imageUsageFlags, VkImageLayout imageLayout)
 {
     // Load image raw data to GPU memory
     // 
@@ -385,4 +385,42 @@ void VulkanTexture2D::createTextureFromKTX(VkQueue transferQueue, VkCommandPool 
     descriptor.sampler = sampler;
     descriptor.imageView = imageView;
     descriptor.imageLayout = imageLayout;
+}
+
+void VulkanTexture2D::createTextureFromglTF(VkQueue transferQueue, VkCommandPool transferCommandPool, tinygltf::Image& glTFImage)
+{
+    this->width = glTFImage.width;
+    this->height = glTFImage.height;
+    this->layerCount = 1;
+    this->mipLevels = 1;
+
+    byte* buffer = nullptr;
+    size_t bufferSize = 0;
+    bool deleteBuffer = false;
+    // RGB to RGBA
+    if (glTFImage.component == 3) {
+        // Most devices don't support RGB only on Vulkan so convert if necessary
+        // TODO: Check actual format support and transform only if required
+        bufferSize = glTFImage.width * glTFImage.height * 4;
+        buffer = new byte[bufferSize];
+        byte* rgba = buffer;
+        byte* rgb = &glTFImage.image[0];
+        for (int i = 0; i < glTFImage.width * glTFImage.height; ++i) {
+            for (int32_t j = 0; j < 3; ++j) {
+                rgba[j] = rgb[j];
+            }
+            rgba += 4;
+            rgb += 3;
+        }
+        deleteBuffer = true;
+    }
+    else {
+        buffer = &glTFImage.image[0];
+        bufferSize = glTFImage.image.size();
+    }
+
+    uint32_t imageSize = bufferSize;
+    byte* imageData = buffer;
+
+    this->createTextureFromMemory(transferQueue, transferCommandPool, imageData, width, height);
 }
